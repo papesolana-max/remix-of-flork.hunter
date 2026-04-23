@@ -62,9 +62,15 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --radius: 1rem;
+  --background: oklch(0.18 0.04 280);
+  --foreground: oklch(0.98 0.01 280);
+  --flork-pink: oklch(0.7 0.28 350);
+  --flork-purple: oklch(0.55 0.28 300);
+  --flork-blue: oklch(0.7 0.22 240);
+  --gradient-flork: linear-gradient(135deg, oklch(0.7 0.28 350), oklch(0.55 0.28 300) 50%, oklch(0.7 0.22 240));
+  --gradient-sky: linear-gradient(180deg, oklch(0.25 0.08 280), oklch(0.35 0.15 300) 60%, oklch(0.45 0.2 340));
+  --shadow-glow: 0 0 60px oklch(0.7 0.28 320 / 0.5);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
