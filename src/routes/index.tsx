@@ -1,12 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
-import mapImg from "@/assets/forest-map.jpg";
+import mapForestImg from "@/assets/forest-map.jpg";
+import mapSwampImg from "@/assets/map-swamp.jpg";
+import mapRuinsImg from "@/assets/map-ruins.jpg";
 import slimeImg from "@/assets/enemy-slime.png";
 import batImg from "@/assets/enemy-bat.png";
 import bossImg from "@/assets/enemy-boss.png";
+import ghostImg from "@/assets/enemy-ghost.png";
+import wolfImg from "@/assets/enemy-wolf.png";
 import treeImg from "@/assets/tree.png";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  sfx,
+  startMusic,
+  stopMusic,
+  unlockAudio,
+  setMusicEnabled,
+  setSfxEnabled,
+  isMusicEnabled,
+  isSfxEnabled,
+} from "@/lib/audio";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -16,42 +30,45 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "A top-down hunting adventure: explore the mystical forest with Flork, defeat monsters, collect loot, and climb the realtime leaderboard!",
+          "A fullscreen top-down hunting adventure: explore mystical maps with Flork, defeat monsters, collect loot, and climb the realtime leaderboard!",
       },
     ],
   }),
 });
 
-const GAME_W = 900;
-const GAME_H = 560;
+// World is much bigger than viewport — camera follows player
+const WORLD_W = 2400;
+const WORLD_H = 1800;
+const VIEW_W = 1280; // svg viewBox width (camera window)
+const VIEW_H = 800;  // svg viewBox height
 const FLORK_SIZE = 64;
-const FLORK_SPEED = 2.2;
-const PROJ_SPEED = 5.5;
-const ENEMY_SPEED_BASE = 0.55;
+const FLORK_SPEED = 2.6;
+const PROJ_SPEED = 6;
+const ENEMY_SPEED_BASE = 0.6;
 
+const MAPS = [mapForestImg, mapSwampImg, mapRuinsImg];
+
+type EnemyType = "slime" | "bat" | "boss" | "ghost" | "wolf";
 type Vec = { x: number; y: number };
 type Enemy = {
-  x: number;
-  y: number;
-  hp: number;
-  maxHp: number;
-  r: number;
-  type: "slime" | "bat" | "boss";
-  hitFlash: number;
-  bob: number;
+  x: number; y: number;
+  hp: number; maxHp: number; r: number;
+  type: EnemyType;
+  hitFlash: number; bob: number;
+  attackFlash: number;
 };
 type Projectile = { x: number; y: number; vx: number; vy: number; life: number };
 type Loot = { x: number; y: number; type: "coin" | "heart"; bob: number };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string };
 type Tree = { x: number; y: number; r: number };
+type SlashFx = { x: number; y: number; life: number };
 type LBRow = {
-  id: string;
-  username: string;
-  wallet: string;
-  score: number;
-  wave: number;
-  kills: number;
-  created_at: string;
+  id: string; username: string; wallet: string;
+  score: number; wave: number; kills: number; created_at: string;
+};
+
+const ENEMY_SPRITES: Record<EnemyType, string> = {
+  slime: slimeImg, bat: batImg, boss: bossImg, ghost: ghostImg, wolf: wolfImg,
 };
 
 function shortWallet(w: string) {
@@ -64,39 +81,37 @@ function Index() {
   const [gameOver, setGameOver] = useState(false);
   const [won, setWon] = useState(false);
   const [hud, setHud] = useState({ hp: 5, gold: 0, wave: 1, kills: 0 });
+  const [mapIdx, setMapIdx] = useState(0);
+  const [musicOn, setMusicOn] = useState(true);
+  const [sfxOn, setSfxOn] = useState(true);
   const [best, setBest] = useState(() => {
     if (typeof window === "undefined") return 0;
     return Number(localStorage.getItem("flork-hunter-best") || 0);
   });
   const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
+  const [showLB, setShowLB] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ username: "", wallet: "" });
 
   const stateRef = useRef({
-    pos: { x: GAME_W / 2, y: GAME_H / 2 } as Vec,
+    pos: { x: WORLD_W / 2, y: WORLD_H / 2 } as Vec,
+    cam: { x: WORLD_W / 2, y: WORLD_H / 2 } as Vec,
     facing: { x: 1, y: 0 } as Vec,
     moveDir: { x: 0, y: 0 } as Vec,
     keys: {} as Record<string, boolean>,
-    mouse: { x: GAME_W / 2 + 50, y: GAME_H / 2 } as Vec,
+    mouse: { x: WORLD_W / 2 + 80, y: WORLD_H / 2 } as Vec, // world coords
     enemies: [] as Enemy[],
     projectiles: [] as Projectile[],
     loot: [] as Loot[],
     particles: [] as Particle[],
+    slashes: [] as SlashFx[],
     trees: [] as Tree[],
-    hp: 5,
-    iframes: 0,
-    gold: 0,
-    kills: 0,
-    wave: 1,
-    waveSpawned: 0,
-    waveTarget: 5,
-    waveCooldown: 0,
-    fireCooldown: 0,
-    running: false,
-    tick: 0,
-    walkPhase: 0,
+    hp: 5, iframes: 0, gold: 0, kills: 0,
+    wave: 1, waveSpawned: 0, waveTarget: 5, waveCooldown: 0,
+    fireCooldown: 0, running: false, tick: 0, walkPhase: 0,
+    shake: 0,
   });
 
   const florkRef = useRef<SVGGElement>(null);
@@ -104,6 +119,9 @@ function Index() {
   const projRef = useRef<SVGGElement>(null);
   const lootRef = useRef<SVGGElement>(null);
   const particlesRef = useRef<SVGGElement>(null);
+  const slashesRef = useRef<SVGGElement>(null);
+  const worldRef = useRef<SVGGElement>(null);
+  const bgRef = useRef<SVGImageElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Load leaderboard + realtime
@@ -114,84 +132,61 @@ function Index() {
         .from("leaderboard")
         .select("*")
         .order("score", { ascending: false })
-        .limit(10);
+        .limit(20);
       if (active && data) setLeaderboard(data as LBRow[]);
     };
     load();
-
     const channel = supabase
       .channel("leaderboard-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "leaderboard" },
-        () => load(),
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leaderboard" }, () => load())
       .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
+    return () => { active = false; supabase.removeChannel(channel); };
   }, []);
 
   const start = useCallback(() => {
+    unlockAudio();
+    if (musicOn) startMusic();
     const trees: Tree[] = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 32; i++) {
       trees.push({
-        x: 80 + Math.random() * (GAME_W - 160),
-        y: 80 + Math.random() * (GAME_H - 160),
-        r: 26 + Math.random() * 14,
+        x: 120 + Math.random() * (WORLD_W - 240),
+        y: 120 + Math.random() * (WORLD_H - 240),
+        r: 26 + Math.random() * 18,
       });
     }
-    const cx = GAME_W / 2,
-      cy = GAME_H / 2;
-    const filtered = trees.filter(
-      (t) => (t.x - cx) ** 2 + (t.y - cy) ** 2 > 130 ** 2,
-    );
+    const cx = WORLD_W / 2, cy = WORLD_H / 2;
+    const filtered = trees.filter((t) => (t.x - cx) ** 2 + (t.y - cy) ** 2 > 180 ** 2);
+    const newMap = Math.floor(Math.random() * MAPS.length);
+    setMapIdx(newMap);
 
     stateRef.current = {
       pos: { x: cx, y: cy },
+      cam: { x: cx, y: cy },
       facing: { x: 1, y: 0 },
       moveDir: { x: 0, y: 0 },
       keys: {},
-      mouse: { x: cx + 50, y: cy },
-      enemies: [],
-      projectiles: [],
-      loot: [],
-      particles: [],
+      mouse: { x: cx + 80, y: cy },
+      enemies: [], projectiles: [], loot: [], particles: [], slashes: [],
       trees: filtered,
-      hp: 5,
-      iframes: 0,
-      gold: 0,
-      kills: 0,
-      wave: 1,
-      waveSpawned: 0,
-      waveTarget: 5,
-      waveCooldown: 60,
-      fireCooldown: 0,
-      running: true,
-      tick: 0,
-      walkPhase: 0,
+      hp: 5, iframes: 0, gold: 0, kills: 0,
+      wave: 1, waveSpawned: 0, waveTarget: 5, waveCooldown: 60,
+      fireCooldown: 0, running: true, tick: 0, walkPhase: 0, shake: 0,
     };
     setHud({ hp: 5, gold: 0, wave: 1, kills: 0 });
-    setGameOver(false);
-    setWon(false);
-    setSubmitted(false);
-    setSubmitError(null);
+    setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
     setRunning(true);
-  }, []);
+  }, [musicOn]);
 
   // keyboard
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       stateRef.current.keys[e.key.toLowerCase()] = true;
+      if (e.code === "Space" && stateRef.current.running) e.preventDefault();
       if (!stateRef.current.running && (e.code === "Space" || e.key === "Enter")) {
         if (!gameOver && !won) start();
       }
     };
-    const up = (e: KeyboardEvent) => {
-      stateRef.current.keys[e.key.toLowerCase()] = false;
-    };
+    const up = (e: KeyboardEvent) => { stateRef.current.keys[e.key.toLowerCase()] = false; };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => {
@@ -207,25 +202,30 @@ function Index() {
     const dy = s.mouse.y - s.pos.y;
     const len = Math.hypot(dx, dy) || 1;
     s.projectiles.push({
-      x: s.pos.x,
-      y: s.pos.y,
+      x: s.pos.x, y: s.pos.y,
       vx: (dx / len) * PROJ_SPEED,
       vy: (dy / len) * PROJ_SPEED,
-      life: 90,
+      life: 110,
     });
-    s.fireCooldown = 22;
+    s.fireCooldown = 20;
+    sfx.shoot();
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * GAME_W;
-    const y = ((e.clientY - rect.top) / rect.height) * GAME_H;
-    stateRef.current.mouse = { x, y };
+    // viewport coords -> world coords (camera-relative)
+    const vx = ((e.clientX - rect.left) / rect.width) * VIEW_W;
+    const vy = ((e.clientY - rect.top) / rect.height) * VIEW_H;
+    const s = stateRef.current;
+    s.mouse = {
+      x: s.cam.x - VIEW_W / 2 + vx,
+      y: s.cam.y - VIEW_H / 2 + vy,
+    };
   }, []);
 
-  // Joystick (mobile)
+  // Joystick
   const joyRef = useRef<HTMLDivElement>(null);
   const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0, active: false });
   const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -251,8 +251,7 @@ function Index() {
     const max = rect.width / 2;
     const len = Math.hypot(dx, dy);
     const k = len > max ? max / len : 1;
-    const kx = dx * k;
-    const ky = dy * k;
+    const kx = dx * k, ky = dy * k;
     setJoyKnob({ x: kx, y: ky, active: true });
     const nlen = Math.hypot(kx, ky) / max;
     if (nlen < 0.15) {
@@ -261,12 +260,11 @@ function Index() {
       const l = Math.hypot(kx, ky) || 1;
       stateRef.current.moveDir = { x: kx / l, y: ky / l };
     }
-    // also aim toward joystick direction if no mouse
     if (e.pointerType !== "mouse" && nlen > 0.2) {
       const l = Math.hypot(kx, ky) || 1;
       stateRef.current.mouse = {
-        x: stateRef.current.pos.x + (kx / l) * 80,
-        y: stateRef.current.pos.y + (ky / l) * 80,
+        x: stateRef.current.pos.x + (kx / l) * 120,
+        y: stateRef.current.pos.y + (ky / l) * 120,
       };
     }
   };
@@ -279,80 +277,62 @@ function Index() {
 
     const collidesTree = (x: number, y: number, r: number) => {
       for (const t of stateRef.current.trees) {
-        const dx = x - t.x;
-        const dy = y - t.y;
+        const dx = x - t.x, dy = y - t.y;
         if (dx * dx + dy * dy < (t.r * 0.55 + r) ** 2) return true;
       }
       return false;
     };
 
     const spawnEnemy = (s: typeof stateRef.current) => {
-      const edge = Math.floor(Math.random() * 4);
-      let x = 0,
-        y = 0;
-      if (edge === 0) {
-        x = Math.random() * GAME_W;
-        y = -20;
-      } else if (edge === 1) {
-        x = GAME_W + 20;
-        y = Math.random() * GAME_H;
-      } else if (edge === 2) {
-        x = Math.random() * GAME_W;
-        y = GAME_H + 20;
-      } else {
-        x = -20;
-        y = Math.random() * GAME_H;
-      }
-      const isBoss = s.wave >= 5 && s.waveSpawned === 0 && Math.random() < 0.5;
-      const isBat = !isBoss && s.wave >= 2 && Math.random() < 0.35;
+      // spawn around the player at off-screen radius
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 600 + Math.random() * 200;
+      let x = s.pos.x + Math.cos(angle) * dist;
+      let y = s.pos.y + Math.sin(angle) * dist;
+      x = Math.max(40, Math.min(WORLD_W - 40, x));
+      y = Math.max(40, Math.min(WORLD_H - 40, y));
+
+      const isBoss = s.wave >= 5 && s.waveSpawned === 0 && Math.random() < 0.6;
       if (isBoss) {
-        s.enemies.push({
-          x, y,
-          hp: 14 + s.wave * 2,
-          maxHp: 14 + s.wave * 2,
-          r: 36,
-          type: "boss",
-          hitFlash: 0,
-          bob: Math.random() * Math.PI * 2,
-        });
-      } else if (isBat) {
-        s.enemies.push({
-          x, y,
-          hp: 2,
-          maxHp: 2,
-          r: 18,
-          type: "bat",
-          hitFlash: 0,
-          bob: Math.random() * Math.PI * 2,
-        });
-      } else {
-        s.enemies.push({
-          x, y,
-          hp: 2 + Math.floor(s.wave / 2),
-          maxHp: 2 + Math.floor(s.wave / 2),
-          r: 22,
-          type: "slime",
-          hitFlash: 0,
-          bob: Math.random() * Math.PI * 2,
-        });
+        s.enemies.push({ x, y, hp: 16 + s.wave * 2, maxHp: 16 + s.wave * 2, r: 40, type: "boss", hitFlash: 0, bob: Math.random() * 6, attackFlash: 0 });
+        return;
       }
+      // weighted variety based on wave
+      const roll = Math.random();
+      let type: EnemyType = "slime";
+      if (s.wave >= 4 && roll < 0.2) type = "wolf";
+      else if (s.wave >= 3 && roll < 0.4) type = "ghost";
+      else if (s.wave >= 2 && roll < 0.65) type = "bat";
+      else type = "slime";
+
+      const stats: Record<EnemyType, { hp: number; r: number }> = {
+        slime: { hp: 2 + Math.floor(s.wave / 2), r: 22 },
+        bat:   { hp: 2, r: 18 },
+        ghost: { hp: 3, r: 20 },
+        wolf:  { hp: 4 + Math.floor(s.wave / 3), r: 24 },
+        boss:  { hp: 16, r: 40 },
+      };
+      const st = stats[type];
+      s.enemies.push({ x, y, hp: st.hp, maxHp: st.hp, r: st.r, type, hitFlash: 0, bob: Math.random() * 6, attackFlash: 0 });
     };
 
     const burst = (s: typeof stateRef.current, x: number, y: number, color: string, n = 10) => {
       for (let i = 0; i < n; i++) {
         s.particles.push({
           x, y,
-          vx: (Math.random() - 0.5) * 4,
-          vy: (Math.random() - 0.5) * 4,
-          life: 22 + Math.random() * 12,
+          vx: (Math.random() - 0.5) * 5,
+          vy: (Math.random() - 0.5) * 5,
+          life: 22 + Math.random() * 14,
           color,
         });
       }
     };
 
-    const finishGame = (won: boolean) => {
+    const finishGame = (didWin: boolean) => {
       const s = stateRef.current;
       s.running = false;
+      stopMusic();
+      if (didWin) sfx.victory(); else sfx.gameOver();
       setRunning(false);
       const finalScore = s.gold + s.kills * 10;
       setBest((b) => {
@@ -360,8 +340,16 @@ function Index() {
         if (typeof window !== "undefined") localStorage.setItem("flork-hunter-best", String(nb));
         return nb;
       });
-      if (won) setWon(true);
+      if (didWin) setWon(true);
       else setGameOver(true);
+    };
+
+    const enemySpeed = (e: Enemy) => {
+      if (e.type === "bat") return ENEMY_SPEED_BASE * 1.7;
+      if (e.type === "ghost") return ENEMY_SPEED_BASE * 1.2;
+      if (e.type === "wolf") return ENEMY_SPEED_BASE * 1.5;
+      if (e.type === "boss") return ENEMY_SPEED_BASE * 0.65;
+      return ENEMY_SPEED_BASE;
     };
 
     const loop = () => {
@@ -375,28 +363,29 @@ function Index() {
       if (s.keys["s"] || s.keys["arrowdown"]) dy += 1;
       if (s.keys["a"] || s.keys["arrowleft"]) dx -= 1;
       if (s.keys["d"] || s.keys["arrowright"]) dx += 1;
-      if (dx || dy) {
-        const l = Math.hypot(dx, dy);
-        dx /= l; dy /= l;
-      } else {
-        dx = s.moveDir.x;
-        dy = s.moveDir.y;
-      }
+      if (dx || dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
+      else { dx = s.moveDir.x; dy = s.moveDir.y; }
 
       const moving = dx !== 0 || dy !== 0;
       if (moving) {
         const nx = s.pos.x + dx * FLORK_SPEED;
         const ny = s.pos.y + dy * FLORK_SPEED;
-        if (nx > 24 && nx < GAME_W - 24 && !collidesTree(nx, s.pos.y, FLORK_SIZE / 2 - 14)) {
-          s.pos.x = nx;
-        }
-        if (ny > 24 && ny < GAME_H - 24 && !collidesTree(s.pos.x, ny, FLORK_SIZE / 2 - 14)) {
-          s.pos.y = ny;
-        }
-        s.walkPhase += 0.25;
+        if (nx > 30 && nx < WORLD_W - 30 && !collidesTree(nx, s.pos.y, FLORK_SIZE / 2 - 14)) s.pos.x = nx;
+        if (ny > 30 && ny < WORLD_H - 30 && !collidesTree(s.pos.x, ny, FLORK_SIZE / 2 - 14)) s.pos.y = ny;
+        s.walkPhase += 0.28;
       } else {
         s.walkPhase *= 0.9;
       }
+
+      // camera lerp toward player + shake
+      const camLerp = 0.12;
+      s.cam.x += (s.pos.x - s.cam.x) * camLerp;
+      s.cam.y += (s.pos.y - s.cam.y) * camLerp;
+      s.cam.x = Math.max(VIEW_W / 2, Math.min(WORLD_W - VIEW_W / 2, s.cam.x));
+      s.cam.y = Math.max(VIEW_H / 2, Math.min(WORLD_H - VIEW_H / 2, s.cam.y));
+      const shakeX = s.shake > 0 ? (Math.random() - 0.5) * s.shake : 0;
+      const shakeY = s.shake > 0 ? (Math.random() - 0.5) * s.shake : 0;
+      if (s.shake > 0) s.shake *= 0.85;
 
       const fx = s.mouse.x - s.pos.x;
       s.facing.x = fx >= 0 ? 1 : -1;
@@ -409,67 +398,50 @@ function Index() {
       if (s.waveCooldown > 0) {
         s.waveCooldown--;
       } else if (s.waveSpawned < s.waveTarget) {
-        if (s.tick % 70 === 0) {
+        if (s.tick % 60 === 0) {
           spawnEnemy(s);
           s.waveSpawned++;
         }
       } else if (s.enemies.length === 0) {
         s.wave++;
-        if (s.wave > 7) {
-          finishGame(true);
-          return;
-        }
+        if (s.wave > 7) { finishGame(true); return; }
         s.waveSpawned = 0;
         s.waveTarget = 4 + s.wave * 2;
         s.waveCooldown = 110;
+        sfx.wave();
       }
 
       // projectiles
-      for (const p of s.projectiles) {
-        p.x += p.vx; p.y += p.vy; p.life--;
-      }
-      s.projectiles = s.projectiles.filter(
-        (p) => p.life > 0 && p.x > -10 && p.x < GAME_W + 10 && p.y > -10 && p.y < GAME_H + 10,
-      );
+      for (const p of s.projectiles) { p.x += p.vx; p.y += p.vy; p.life--; }
+      s.projectiles = s.projectiles.filter((p) => p.life > 0 && p.x > -20 && p.x < WORLD_W + 20 && p.y > -20 && p.y < WORLD_H + 20);
 
       // enemies move
       for (const e of s.enemies) {
-        const ex = s.pos.x - e.x;
-        const ey = s.pos.y - e.y;
+        const ex = s.pos.x - e.x, ey = s.pos.y - e.y;
         const len = Math.hypot(ex, ey) || 1;
-        const sp =
-          e.type === "bat"
-            ? ENEMY_SPEED_BASE * 1.7
-            : e.type === "boss"
-              ? ENEMY_SPEED_BASE * 0.6
-              : ENEMY_SPEED_BASE;
+        const sp = enemySpeed(e);
         e.x += (ex / len) * sp;
         e.y += (ey / len) * sp;
         e.bob += 0.15;
         if (e.hitFlash > 0) e.hitFlash--;
+        if (e.attackFlash > 0) e.attackFlash--;
       }
 
       // proj vs enemy
       for (const p of s.projectiles) {
         for (const e of s.enemies) {
-          const dx2 = p.x - e.x;
-          const dy2 = p.y - e.y;
+          const dx2 = p.x - e.x, dy2 = p.y - e.y;
           if (dx2 * dx2 + dy2 * dy2 < e.r * e.r) {
-            e.hp--;
-            e.hitFlash = 6;
-            p.life = 0;
+            e.hp--; e.hitFlash = 6; p.life = 0;
             burst(s, p.x, p.y, "#ffd166", 5);
+            sfx.hit();
             if (e.hp <= 0) {
               s.kills++;
-              burst(s, e.x, e.y, "#ff6bd6", 14);
+              burst(s, e.x, e.y, "#ff6bd6", 16);
+              sfx.enemyDie();
               if (e.type === "boss") {
                 for (let i = 0; i < 3; i++) {
-                  s.loot.push({
-                    x: e.x + (Math.random() - 0.5) * 30,
-                    y: e.y + (Math.random() - 0.5) * 30,
-                    type: "coin",
-                    bob: Math.random() * Math.PI * 2,
-                  });
+                  s.loot.push({ x: e.x + (Math.random() - 0.5) * 30, y: e.y + (Math.random() - 0.5) * 30, type: "coin", bob: Math.random() * Math.PI * 2 });
                 }
                 s.loot.push({ x: e.x, y: e.y, type: "heart", bob: 0 });
               } else if (Math.random() < 0.2) {
@@ -488,16 +460,16 @@ function Index() {
       // enemy vs flork
       if (s.iframes === 0) {
         for (const e of s.enemies) {
-          const dx2 = s.pos.x - e.x;
-          const dy2 = s.pos.y - e.y;
+          const dx2 = s.pos.x - e.x, dy2 = s.pos.y - e.y;
           if (dx2 * dx2 + dy2 * dy2 < (e.r + FLORK_SIZE / 2 - 12) ** 2) {
-            s.hp--;
-            s.iframes = 70;
-            burst(s, s.pos.x, s.pos.y, "#ef4444", 12);
-            if (s.hp <= 0) {
-              finishGame(false);
-              return;
-            }
+            s.hp--; s.iframes = 70;
+            burst(s, s.pos.x, s.pos.y, "#ef4444", 14);
+            // attack visual
+            e.attackFlash = 14;
+            s.slashes.push({ x: s.pos.x, y: s.pos.y, life: 16 });
+            s.shake = 12;
+            sfx.playerHurt();
+            if (s.hp <= 0) { finishGame(false); return; }
             break;
           }
         }
@@ -506,30 +478,31 @@ function Index() {
       // loot pickup
       for (const l of s.loot) {
         l.bob += 0.15;
-        const dx2 = s.pos.x - l.x;
-        const dy2 = s.pos.y - l.y;
-        if (dx2 * dx2 + dy2 * dy2 < 32 * 32) {
-          if (l.type === "coin") {
-            s.gold += 5;
-            burst(s, l.x, l.y, "#fde047", 6);
-          } else {
-            s.hp = Math.min(5, s.hp + 1);
-            burst(s, l.x, l.y, "#f87171", 8);
-          }
+        const dx2 = s.pos.x - l.x, dy2 = s.pos.y - l.y;
+        if (dx2 * dx2 + dy2 * dy2 < 36 * 36) {
+          if (l.type === "coin") { s.gold += 5; burst(s, l.x, l.y, "#fde047", 6); sfx.coin(); }
+          else { s.hp = Math.min(5, s.hp + 1); burst(s, l.x, l.y, "#f87171", 8); sfx.heart(); }
           (l as Loot & { taken?: boolean }).taken = true;
         }
       }
       s.loot = s.loot.filter((l) => !(l as Loot & { taken?: boolean }).taken);
 
       // particles
-      for (const p of s.particles) {
-        p.x += p.vx; p.y += p.vy;
-        p.vx *= 0.94; p.vy *= 0.94;
-        p.life--;
-      }
+      for (const p of s.particles) { p.x += p.vx; p.y += p.vy; p.vx *= 0.94; p.vy *= 0.94; p.life--; }
       s.particles = s.particles.filter((p) => p.life > 0);
 
-      // ===== render flork with walk + facing =====
+      // slashes
+      for (const sl of s.slashes) sl.life--;
+      s.slashes = s.slashes.filter((sl) => sl.life > 0);
+
+      // ===== camera transform on world group =====
+      if (worldRef.current) {
+        const tx = -(s.cam.x - VIEW_W / 2) + shakeX;
+        const ty = -(s.cam.y - VIEW_H / 2) + shakeY;
+        worldRef.current.setAttribute("transform", `translate(${tx} ${ty})`);
+      }
+
+      // ===== flork =====
       if (florkRef.current) {
         const bob = Math.sin(s.walkPhase) * 4;
         const tilt = Math.sin(s.walkPhase) * 6;
@@ -547,12 +520,9 @@ function Index() {
         while (g.firstChild) g.removeChild(g.firstChild);
         for (const e of s.enemies) {
           const grp = document.createElementNS(svgNS, "g");
-          const bob = Math.sin(e.bob) * (e.type === "bat" ? 5 : 3);
+          const bob = Math.sin(e.bob) * (e.type === "bat" || e.type === "ghost" ? 6 : 3);
           const facing = s.pos.x < e.x ? -1 : 1;
-          grp.setAttribute(
-            "transform",
-            `translate(${e.x} ${e.y + bob}) scale(${facing} 1)`,
-          );
+          grp.setAttribute("transform", `translate(${e.x} ${e.y + bob}) scale(${facing} 1)`);
           // shadow
           const sh = document.createElementNS(svgNS, "ellipse");
           sh.setAttribute("cx", "0");
@@ -561,11 +531,20 @@ function Index() {
           sh.setAttribute("ry", String(e.r * 0.22));
           sh.setAttribute("fill", "rgba(0,0,0,0.4)");
           grp.appendChild(sh);
+          // attack ring
+          if (e.attackFlash > 0) {
+            const ring = document.createElementNS(svgNS, "circle");
+            ring.setAttribute("r", String(e.r + (14 - e.attackFlash) * 2));
+            ring.setAttribute("fill", "none");
+            ring.setAttribute("stroke", "#ff3355");
+            ring.setAttribute("stroke-width", "3");
+            ring.setAttribute("opacity", String(e.attackFlash / 14));
+            grp.appendChild(ring);
+          }
           // sprite
           const img = document.createElementNS(svgNS, "image");
           const size = e.r * 2.4;
-          img.setAttribute("href",
-            e.type === "boss" ? bossImg : e.type === "bat" ? batImg : slimeImg);
+          img.setAttribute("href", ENEMY_SPRITES[e.type]);
           img.setAttribute("x", String(-size / 2));
           img.setAttribute("y", String(-size / 2));
           img.setAttribute("width", String(size));
@@ -586,7 +565,6 @@ function Index() {
             bg.setAttribute("height", "4");
             bg.setAttribute("fill", "rgba(0,0,0,0.6)");
             bg.setAttribute("rx", "2");
-            // counter-flip so bar is left-to-right regardless of sprite facing
             bg.setAttribute("transform", `scale(${facing} 1)`);
             grp.appendChild(bg);
             const fg = document.createElementNS(svgNS, "rect");
@@ -607,7 +585,7 @@ function Index() {
         const g = projRef.current;
         while (g.childNodes.length < s.projectiles.length) {
           const c = document.createElementNS(svgNS, "circle");
-          c.setAttribute("r", "6");
+          c.setAttribute("r", "7");
           c.setAttribute("fill", "url(#projGrad)");
           c.setAttribute("filter", "url(#glow)");
           g.appendChild(c);
@@ -629,7 +607,7 @@ function Index() {
             const c = document.createElementNS(svgNS, "circle");
             c.setAttribute("cx", String(l.x));
             c.setAttribute("cy", String(l.y + yo));
-            c.setAttribute("r", "9");
+            c.setAttribute("r", "10");
             c.setAttribute("fill", "url(#coinGrad)");
             c.setAttribute("filter", "url(#glow)");
             c.setAttribute("stroke", "#854d0e");
@@ -638,7 +616,7 @@ function Index() {
           } else {
             const path = document.createElementNS(svgNS, "path");
             path.setAttribute("d",
-              `M ${l.x} ${l.y + yo + 6} C ${l.x - 13} ${l.y + yo - 5}, ${l.x - 9} ${l.y + yo - 13}, ${l.x} ${l.y + yo - 4} C ${l.x + 9} ${l.y + yo - 13}, ${l.x + 13} ${l.y + yo - 5}, ${l.x} ${l.y + yo + 6} Z`,
+              `M ${l.x} ${l.y + yo + 6} C ${l.x - 14} ${l.y + yo - 5}, ${l.x - 10} ${l.y + yo - 14}, ${l.x} ${l.y + yo - 4} C ${l.x + 10} ${l.y + yo - 14}, ${l.x + 14} ${l.y + yo - 5}, ${l.x} ${l.y + yo + 6} Z`,
             );
             path.setAttribute("fill", "#ef4444");
             path.setAttribute("stroke", "white");
@@ -651,10 +629,7 @@ function Index() {
 
       if (particlesRef.current) {
         const g = particlesRef.current;
-        while (g.childNodes.length < s.particles.length) {
-          const c = document.createElementNS(svgNS, "circle");
-          g.appendChild(c);
-        }
+        while (g.childNodes.length < s.particles.length) g.appendChild(document.createElementNS(svgNS, "circle"));
         while (g.childNodes.length > s.particles.length) g.removeChild(g.lastChild!);
         s.particles.forEach((p, i) => {
           const c = g.childNodes[i] as SVGCircleElement;
@@ -666,9 +641,34 @@ function Index() {
         });
       }
 
-      if (s.tick % 6 === 0) {
-        setHud({ hp: s.hp, gold: s.gold, wave: s.wave, kills: s.kills });
+      // slashes (attack effect)
+      if (slashesRef.current) {
+        const g = slashesRef.current;
+        while (g.firstChild) g.removeChild(g.firstChild);
+        for (const sl of s.slashes) {
+          const a = sl.life / 16;
+          const r = (16 - sl.life) * 4 + 18;
+          const c = document.createElementNS(svgNS, "circle");
+          c.setAttribute("cx", String(sl.x));
+          c.setAttribute("cy", String(sl.y));
+          c.setAttribute("r", String(r));
+          c.setAttribute("fill", "none");
+          c.setAttribute("stroke", "#fff");
+          c.setAttribute("stroke-width", "3");
+          c.setAttribute("opacity", String(a));
+          g.appendChild(c);
+          // X slash
+          const path = document.createElementNS(svgNS, "path");
+          path.setAttribute("d", `M ${sl.x - 14} ${sl.y - 14} L ${sl.x + 14} ${sl.y + 14} M ${sl.x - 14} ${sl.y + 14} L ${sl.x + 14} ${sl.y - 14}`);
+          path.setAttribute("stroke", "#ff3355");
+          path.setAttribute("stroke-width", "4");
+          path.setAttribute("stroke-linecap", "round");
+          path.setAttribute("opacity", String(a));
+          g.appendChild(path);
+        }
       }
+
+      if (s.tick % 6 === 0) setHud({ hp: s.hp, gold: s.gold, wave: s.wave, kills: s.kills });
 
       raf = requestAnimationFrame(loop);
     };
@@ -677,6 +677,21 @@ function Index() {
     return () => cancelAnimationFrame(raf);
   }, [running, fire]);
 
+  // stop music on unmount
+  useEffect(() => () => stopMusic(), []);
+
+  const toggleMusic = () => {
+    const next = !musicOn;
+    setMusicOn(next);
+    setMusicEnabled(next);
+    if (next && running) startMusic(); else stopMusic();
+  };
+  const toggleSfx = () => {
+    const next = !sfxOn;
+    setSfxOn(next);
+    setSfxEnabled(next);
+  };
+
   const finalScore = hud.gold + hud.kills * 10;
 
   const submitScore = async (e: React.FormEvent) => {
@@ -684,340 +699,299 @@ function Index() {
     setSubmitError(null);
     const username = form.username.trim();
     const wallet = form.wallet.trim();
-    if (username.length < 1 || username.length > 32) {
-      setSubmitError("Username must be 1–32 characters.");
-      return;
-    }
-    if (wallet.length < 4 || wallet.length > 128) {
-      setSubmitError("Wallet must be 4–128 characters.");
-      return;
-    }
+    if (username.length < 1 || username.length > 32) { setSubmitError("Username must be 1–32 characters."); return; }
+    if (wallet.length < 4 || wallet.length > 128) { setSubmitError("Wallet must be 4–128 characters."); return; }
     setSubmitting(true);
     const { error } = await supabase.from("leaderboard").insert({
-      username,
-      wallet,
-      score: finalScore,
-      wave: hud.wave,
-      kills: hud.kills,
-      gold: hud.gold,
+      username, wallet, score: finalScore, wave: hud.wave, kills: hud.kills, gold: hud.gold,
     });
     setSubmitting(false);
-    if (error) {
-      setSubmitError(error.message);
-      return;
-    }
+    if (error) { setSubmitError(error.message); return; }
     setSubmitted(true);
   };
 
   return (
-    <main
-      className="min-h-screen w-full flex flex-col items-center px-3 py-4 md:py-6"
-      style={{ background: "var(--gradient-sky)" }}
-    >
-      <h1
-        className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tight mb-1 text-transparent bg-clip-text text-center"
-        style={{ backgroundImage: "var(--gradient-flork)" }}
+    <main className="fixed inset-0 w-screen h-screen overflow-hidden select-none touch-none" style={{ background: "var(--gradient-sky)" }}>
+      {/* Game canvas — fullscreen */}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+        preserveAspectRatio="xMidYMid slice"
+        className="absolute inset-0 w-full h-full cursor-crosshair"
+        onPointerMove={onPointerMove}
+        onPointerDown={(e) => {
+          unlockAudio();
+          if (e.pointerType === "mouse") {
+            if (running) fire();
+            else if (!gameOver && !won) start();
+          } else {
+            if (running) fire();
+          }
+        }}
       >
-        FLORK HUNTER
-      </h1>
-      <p className="text-foreground/70 mb-3 text-xs sm:text-sm md:text-base text-center max-w-xl px-2">
-        <span className="hidden md:inline">
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">WASD</kbd> move ·{" "}
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Click</kbd> /{" "}
-          <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Space</kbd> shoot toward cursor
-        </span>
-        <span className="md:hidden">Use joystick to move · tap screen to shoot</span>
-      </p>
+        <defs>
+          <radialGradient id="projGrad">
+            <stop offset="0%" stopColor="white" />
+            <stop offset="100%" stopColor="#fbbf24" />
+          </radialGradient>
+          <radialGradient id="coinGrad">
+            <stop offset="0%" stopColor="#fef3c7" />
+            <stop offset="100%" stopColor="#eab308" />
+          </radialGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <radialGradient id="vign" cx="50%" cy="50%" r="70%">
+            <stop offset="55%" stopColor="rgba(0,0,0,0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.6)" />
+          </radialGradient>
+        </defs>
 
-      {/* HUD */}
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 md:gap-6 mb-3 text-foreground">
-        <div className="flex items-center gap-1">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span
-              key={i}
-              className="text-xl sm:text-2xl"
-              style={{
-                filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)",
-                transform: i < hud.hp ? "scale(1)" : "scale(0.85)",
-              }}
-            >
-              ❤️
-            </span>
+        {/* World (camera-translated) */}
+        <g ref={worldRef}>
+          {/* Tile the map across the world (3x3) so it scrolls with camera */}
+          {Array.from({ length: 3 }).map((_, row) =>
+            Array.from({ length: 3 }).map((_, col) => (
+              <image
+                key={`${row}-${col}`}
+                ref={row === 0 && col === 0 ? bgRef : undefined}
+                href={MAPS[mapIdx]}
+                x={col * (WORLD_W / 3)}
+                y={row * (WORLD_H / 3)}
+                width={WORLD_W / 3}
+                height={WORLD_H / 3}
+                preserveAspectRatio="xMidYMid slice"
+                opacity={(row + col) % 2 === 0 ? 1 : 0.92}
+              />
+            )),
+          )}
+
+          {/* Trees */}
+          {stateRef.current.trees.map((t, i) => (
+            <g key={i}>
+              <ellipse cx={t.x} cy={t.y + t.r * 0.55} rx={t.r * 0.85} ry={t.r * 0.22} fill="rgba(0,0,0,0.45)" />
+              <image
+                href={treeImg}
+                x={t.x - t.r * 1.3}
+                y={t.y - t.r * 1.3}
+                width={t.r * 2.6}
+                height={t.r * 2.6}
+                style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.4))" }}
+              />
+            </g>
           ))}
+
+          <g ref={lootRef} />
+          <g ref={projRef} />
+          <g ref={enemiesRef} />
+
+          {/* Flork */}
+          <g ref={florkRef}>
+            <ellipse cx={0} cy={FLORK_SIZE / 2 - 4} rx={FLORK_SIZE / 2.6} ry={6} fill="rgba(0,0,0,0.45)" />
+            <image
+              href={florkImg}
+              x={-FLORK_SIZE / 2}
+              y={-FLORK_SIZE / 2}
+              width={FLORK_SIZE}
+              height={FLORK_SIZE}
+              style={{ filter: "drop-shadow(0 6px 6px rgba(0,0,0,0.55))" }}
+            />
+          </g>
+
+          <g ref={particlesRef} />
+          <g ref={slashesRef} />
+        </g>
+
+        {/* Vignette overlay (screen-space) */}
+        <rect width={VIEW_W} height={VIEW_H} fill="url(#vign)" pointerEvents="none" />
+
+        {/* Crosshair (screen-space) */}
+        {running && (
+          <g pointerEvents="none" transform={`translate(${(stateRef.current.mouse.x - stateRef.current.cam.x) + VIEW_W / 2} ${(stateRef.current.mouse.y - stateRef.current.cam.y) + VIEW_H / 2})`}>
+            <circle r="13" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="2" />
+            <circle r="2" fill="white" />
+          </g>
+        )}
+      </svg>
+
+      {/* Top HUD */}
+      <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 flex items-start justify-between gap-2 pointer-events-none z-10">
+        <div className="flex flex-col gap-2 pointer-events-auto">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text drop-shadow-lg" style={{ backgroundImage: "var(--gradient-flork)" }}>
+            FLORK HUNTER
+          </h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
+            <div className="flex items-center gap-0.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className="text-base sm:text-lg" style={{ filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)" }}>❤️</span>
+              ))}
+            </div>
+            <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">🪙 <span className="font-bold">{hud.gold}</span></div>
+            <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">⚔️ <span className="font-bold">{hud.kills}</span></div>
+            <div className="text-sm font-bold px-3 py-1 rounded-full text-white" style={{ background: "var(--gradient-flork)" }}>Wave {hud.wave}/7</div>
+            <div className="hidden sm:block bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-xs">Best: <span className="font-mono font-bold">{best}</span></div>
+          </div>
         </div>
-        <div className="text-base sm:text-lg font-mono">
-          🪙 <span className="font-bold">{hud.gold}</span>
-        </div>
-        <div className="text-base sm:text-lg font-mono">
-          ⚔️ <span className="font-bold">{hud.kills}</span>
-        </div>
-        <div className="text-sm sm:text-lg font-bold px-3 py-1 rounded-full" style={{ background: "var(--gradient-flork)" }}>
-          Wave {hud.wave}/7
-        </div>
-        <div className="text-xs sm:text-sm opacity-70">
-          Best: <span className="font-mono font-bold">{best}</span>
+
+        <div className="flex flex-col items-end gap-2 pointer-events-auto">
+          <div className="flex gap-2">
+            <button onClick={toggleMusic} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle music">
+              {musicOn ? "🎵" : "🔇"}
+            </button>
+            <button onClick={toggleSfx} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle SFX">
+              {sfxOn ? "🔊" : "🔈"}
+            </button>
+            <button onClick={() => setShowLB((v) => !v)} className="px-4 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white text-sm font-bold hover:bg-black/70 transition-colors">
+              🏆 {showLB ? "Hide" : "Leaderboard"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="w-full max-w-[900px] grid lg:grid-cols-[1fr_280px] gap-4">
-        <div
-          className="relative w-full aspect-[9/5.6] rounded-3xl overflow-hidden border-2 border-white/20 select-none touch-none"
-          style={{ boxShadow: "var(--shadow-glow)" }}
-        >
-          <svg
-            ref={svgRef}
-            viewBox={`0 0 ${GAME_W} ${GAME_H}`}
-            className="absolute inset-0 w-full h-full cursor-crosshair"
-            preserveAspectRatio="xMidYMid slice"
-            onPointerMove={onPointerMove}
-            onPointerDown={(e) => {
-              if (e.pointerType === "mouse") {
-                running ? fire() : !gameOver && !won && start();
-              } else {
-                if (running) fire();
-              }
-            }}
-          >
-            <defs>
-              <radialGradient id="projGrad">
-                <stop offset="0%" stopColor="white" />
-                <stop offset="100%" stopColor="#fbbf24" />
-              </radialGradient>
-              <radialGradient id="coinGrad">
-                <stop offset="0%" stopColor="#fef3c7" />
-                <stop offset="100%" stopColor="#eab308" />
-              </radialGradient>
-              <filter id="glow">
-                <feGaussianBlur stdDeviation="2.5" result="b" />
-                <feMerge>
-                  <feMergeNode in="b" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-
-            {/* AI generated map background */}
-            <image
-              href={mapImg}
-              x={0}
-              y={0}
-              width={GAME_W}
-              height={GAME_H}
-              preserveAspectRatio="xMidYMid slice"
-            />
-            {/* Subtle vignette */}
-            <radialGradient id="vign" cx="50%" cy="50%" r="70%">
-              <stop offset="60%" stopColor="rgba(0,0,0,0)" />
-              <stop offset="100%" stopColor="rgba(0,0,0,0.55)" />
-            </radialGradient>
-            <rect width={GAME_W} height={GAME_H} fill="url(#vign)" />
-
-            {/* Trees */}
-            {stateRef.current.trees.map((t, i) => (
-              <g key={i}>
-                <ellipse cx={t.x} cy={t.y + t.r * 0.55} rx={t.r * 0.85} ry={t.r * 0.22} fill="rgba(0,0,0,0.45)" />
-                <image
-                  href={treeImg}
-                  x={t.x - t.r * 1.3}
-                  y={t.y - t.r * 1.3}
-                  width={t.r * 2.6}
-                  height={t.r * 2.6}
-                  style={{ filter: "drop-shadow(0 4px 4px rgba(0,0,0,0.4))" }}
-                />
-              </g>
+      {/* Leaderboard panel (slides in) */}
+      <aside className={`absolute top-20 right-3 sm:top-24 sm:right-4 w-[min(92vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-white/20 bg-black/60 backdrop-blur-md p-3 sm:p-4 text-white z-20 transition-all ${showLB ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"}`}>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-base font-bold">🏆 Leaderboard</h2>
+          <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+          </span>
+        </div>
+        {leaderboard.length === 0 ? (
+          <p className="text-xs opacity-60">No scores yet. Be the first!</p>
+        ) : (
+          <ol className="space-y-1.5">
+            {leaderboard.map((row, i) => (
+              <li key={row.id} className="flex items-center gap-2 text-sm rounded-lg px-2 py-1.5"
+                style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "transparent" }}>
+                <span className="font-bold w-5 text-center opacity-70">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{row.username}</div>
+                  <div className="text-[10px] opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
+                </div>
+                <span className="font-mono font-bold text-right">{row.score}</span>
+              </li>
             ))}
+          </ol>
+        )}
+      </aside>
 
-            <g ref={lootRef} />
-            <g ref={projRef} />
-            <g ref={enemiesRef} />
+      {/* Mobile joystick */}
+      {running && (
+        <div
+          ref={joyRef}
+          onPointerDown={onJoyStart}
+          onPointerMove={onJoyMove}
+          onPointerUp={onJoyEnd}
+          onPointerCancel={onJoyEnd}
+          className="lg:hidden absolute bottom-6 left-6 w-32 h-32 rounded-full bg-white/15 border-2 border-white/40 backdrop-blur-sm touch-none z-20"
+          style={{ touchAction: "none" }}
+        >
+          <div
+            className="absolute top-1/2 left-1/2 w-14 h-14 rounded-full bg-white/70 border-2 border-white pointer-events-none"
+            style={{
+              transform: `translate(calc(-50% + ${joyKnob.x}px), calc(-50% + ${joyKnob.y}px))`,
+              transition: joyKnob.active ? "none" : "transform 0.15s",
+            }}
+          />
+        </div>
+      )}
 
-            {/* Flork player */}
-            <g ref={florkRef}>
-              <ellipse cx={0} cy={FLORK_SIZE / 2 - 4} rx={FLORK_SIZE / 2.6} ry={6} fill="rgba(0,0,0,0.45)" />
-              <image
-                href={florkImg}
-                x={-FLORK_SIZE / 2}
-                y={-FLORK_SIZE / 2}
-                width={FLORK_SIZE}
-                height={FLORK_SIZE}
-                style={{ filter: "drop-shadow(0 6px 6px rgba(0,0,0,0.55))" }}
+      {/* Mobile fire */}
+      {running && (
+        <button
+          onPointerDown={(e) => { e.stopPropagation(); fire(); }}
+          className="lg:hidden absolute bottom-6 right-6 w-24 h-24 rounded-full font-bold text-white text-base border-2 border-white/60 active:scale-95 transition-transform z-20"
+          style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)", touchAction: "none" }}
+        >
+          FIRE
+        </button>
+      )}
+
+      {/* Start overlay */}
+      {!running && !gameOver && !won && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 px-4">
+          <div className="text-4xl sm:text-5xl md:text-7xl font-black mb-3 text-transparent bg-clip-text text-center" style={{ backgroundImage: "var(--gradient-flork)" }}>
+            FLORK HUNTER
+          </div>
+          <p className="text-white/80 mb-6 text-sm sm:text-base md:text-lg text-center max-w-lg">
+            Explore mystical maps, hunt monsters, collect coins, and survive 7 waves to claim victory!
+          </p>
+          <div className="text-white/60 text-xs sm:text-sm mb-6 text-center max-w-md">
+            <span className="hidden md:inline">
+              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">WASD</kbd> move ·{" "}
+              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Mouse</kbd> aim ·{" "}
+              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Click/Space</kbd> shoot
+            </span>
+            <span className="md:hidden">Joystick to move · FIRE button to shoot</span>
+          </div>
+          <button
+            onClick={start}
+            className="px-10 py-4 rounded-full font-bold text-white text-lg sm:text-xl hover:scale-105 transition-transform"
+            style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+          >
+            START HUNTING
+          </button>
+        </div>
+      )}
+
+      {/* Game over / win overlay */}
+      {(gameOver || won) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm overflow-y-auto p-4 z-30">
+          <div className={`text-4xl sm:text-5xl md:text-6xl font-black mb-2 ${won ? "text-transparent bg-clip-text" : "text-white"}`}
+            style={won ? { backgroundImage: "var(--gradient-flork)" } : undefined}>
+            {won ? "VICTORY! 🏆" : "GAME OVER"}
+          </div>
+          <div className="text-white/80 mb-1 text-sm sm:text-base">Wave {hud.wave} · {hud.kills} kills · 🪙 {hud.gold}</div>
+          <div className="text-white/70 mb-4 text-sm">Score: <span className="font-bold text-white text-base">{finalScore}</span> · Best: {best}</div>
+
+          {!submitted ? (
+            <form onSubmit={submitScore} className="w-full max-w-sm space-y-2 bg-white/10 rounded-2xl p-4 border border-white/20">
+              <div className="text-white/90 text-sm font-semibold text-center mb-1">Submit your score</div>
+              <input
+                type="text" placeholder="Username"
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                maxLength={32}
+                className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                required
               />
-            </g>
-
-            <g ref={particlesRef} />
-
-            {running && (
-              <g pointerEvents="none">
-                <circle cx={stateRef.current.mouse.x} cy={stateRef.current.mouse.y} r="11" fill="none" stroke="white" strokeOpacity="0.8" strokeWidth="2" />
-                <circle cx={stateRef.current.mouse.x} cy={stateRef.current.mouse.y} r="2" fill="white" />
-              </g>
-            )}
-          </svg>
-
-          {/* Mobile joystick */}
-          {running && (
-            <div
-              ref={joyRef}
-              onPointerDown={onJoyStart}
-              onPointerMove={onJoyMove}
-              onPointerUp={onJoyEnd}
-              onPointerCancel={onJoyEnd}
-              className="lg:hidden absolute bottom-4 left-4 w-28 h-28 rounded-full bg-white/15 border-2 border-white/40 backdrop-blur-sm touch-none"
-              style={{ touchAction: "none" }}
-            >
-              <div
-                className="absolute top-1/2 left-1/2 w-12 h-12 rounded-full bg-white/70 border-2 border-white pointer-events-none"
-                style={{
-                  transform: `translate(calc(-50% + ${joyKnob.x}px), calc(-50% + ${joyKnob.y}px))`,
-                  transition: joyKnob.active ? "none" : "transform 0.15s",
-                }}
+              <input
+                type="text" placeholder="Wallet (e.g. 0x... or sol address)"
+                value={form.wallet}
+                onChange={(e) => setForm((f) => ({ ...f, wallet: e.target.value }))}
+                maxLength={128}
+                className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                required
               />
-            </div>
-          )}
-
-          {/* Mobile fire button */}
-          {running && (
-            <button
-              onPointerDown={(e) => { e.stopPropagation(); fire(); }}
-              className="lg:hidden absolute bottom-4 right-4 w-20 h-20 rounded-full font-bold text-white text-sm border-2 border-white/60 active:scale-95 transition-transform"
-              style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)", touchAction: "none" }}
-            >
-              FIRE
-            </button>
-          )}
-
-          {!running && !gameOver && !won && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="text-2xl sm:text-3xl md:text-5xl font-black mb-2 text-white text-center px-4">
-                Flork's Adventure
+              {submitError && <div className="text-red-300 text-xs">{submitError}</div>}
+              <div className="flex gap-2">
+                <button type="submit" disabled={submitting}
+                  className="flex-1 py-2 rounded-full font-bold text-white text-sm disabled:opacity-60"
+                  style={{ background: "var(--gradient-flork)" }}>
+                  {submitting ? "Saving..." : "Submit"}
+                </button>
+                <button type="button" onClick={start}
+                  className="px-4 py-2 rounded-full font-bold text-white text-sm bg-white/20 border border-white/30">
+                  Skip
+                </button>
               </div>
-              <p className="text-white/70 mb-5 text-xs sm:text-sm md:text-base text-center max-w-md px-4">
-                Welcome to the mystical forest. Hunt monsters, collect coins, and survive 7 waves!
-              </p>
-              <button
-                onClick={start}
-                className="px-8 py-3 rounded-full font-bold text-white text-base sm:text-lg hover:scale-105 transition-transform"
-                style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
-              >
-                START HUNTING
+            </form>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <div className="text-emerald-300 text-base">✓ Submitted to leaderboard!</div>
+              <button onClick={start}
+                className="px-10 py-3 rounded-full font-bold text-white text-base"
+                style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}>
+                PLAY AGAIN
               </button>
             </div>
           )}
-
-          {(gameOver || won) && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm overflow-y-auto p-4">
-              <div className={`text-3xl sm:text-4xl md:text-6xl font-black mb-1 ${won ? "text-transparent bg-clip-text" : "text-white"}`}
-                style={won ? { backgroundImage: "var(--gradient-flork)" } : undefined}>
-                {won ? "VICTORY! 🏆" : "GAME OVER"}
-              </div>
-              <div className="text-white/80 mb-1 text-sm sm:text-base">
-                Wave {hud.wave} · {hud.kills} kills · 🪙 {hud.gold}
-              </div>
-              <div className="text-white/70 mb-3 text-xs sm:text-sm">
-                Score: <span className="font-bold text-white text-base">{finalScore}</span> · Best: {best}
-              </div>
-
-              {!submitted ? (
-                <form onSubmit={submitScore} className="w-full max-w-xs space-y-2 bg-white/10 rounded-2xl p-3 border border-white/20">
-                  <div className="text-white/90 text-xs font-semibold text-center mb-1">Submit your score</div>
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={form.username}
-                    onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                    maxLength={32}
-                    className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Wallet (e.g. 0x... or sol address)"
-                    value={form.wallet}
-                    onChange={(e) => setForm((f) => ({ ...f, wallet: e.target.value }))}
-                    maxLength={128}
-                    className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                    required
-                  />
-                  {submitError && (
-                    <div className="text-red-300 text-xs">{submitError}</div>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 py-2 rounded-full font-bold text-white text-sm disabled:opacity-60"
-                      style={{ background: "var(--gradient-flork)" }}
-                    >
-                      {submitting ? "Saving..." : "Submit"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={start}
-                      className="px-4 py-2 rounded-full font-bold text-white text-sm bg-white/20 border border-white/30"
-                    >
-                      Skip
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="text-emerald-300 text-sm">✓ Submitted to leaderboard!</div>
-                  <button
-                    onClick={start}
-                    className="px-8 py-2 rounded-full font-bold text-white"
-                    style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
-                  >
-                    PLAY AGAIN
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
-
-        {/* Leaderboard */}
-        <aside className="rounded-3xl border border-white/20 bg-white/5 backdrop-blur-sm p-3 sm:p-4 text-foreground">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold">🏆 Leaderboard</h2>
-            <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live
-            </span>
-          </div>
-          {leaderboard.length === 0 ? (
-            <p className="text-xs opacity-60">No scores yet. Be the first!</p>
-          ) : (
-            <ol className="space-y-1.5 max-h-[420px] overflow-y-auto pr-1">
-              {leaderboard.map((row, i) => (
-                <li
-                  key={row.id}
-                  className="flex items-center gap-2 text-sm rounded-lg px-2 py-1.5"
-                  style={{
-                    background: i === 0
-                      ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)"
-                      : i < 3
-                        ? "rgba(255,255,255,0.06)"
-                        : "transparent",
-                  }}
-                >
-                  <span className="font-bold w-5 text-center opacity-70">
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{row.username}</div>
-                    <div className="text-[10px] opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                  </div>
-                  <span className="font-mono font-bold text-right">{row.score}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </aside>
-      </div>
-
-      <p className="mt-4 text-xs text-foreground/50 text-center px-4">
-        🪙 Coin = +5 · ❤️ Heart = +1 HP · Boss appears from wave 5+
-      </p>
+      )}
     </main>
   );
 }
+
+// keep referenced for tree-shaking safety (TS unused warn)
+void isMusicEnabled; void isSfxEnabled;
