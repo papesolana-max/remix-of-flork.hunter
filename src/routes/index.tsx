@@ -20,6 +20,16 @@ import {
   setMusicEnabled,
   setSfxEnabled,
 } from "@/lib/audio";
+import { Globe, Send, Trophy, Play, X } from "lucide-react";
+
+// Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2H21l-6.52 7.45L22 22h-6.99l-4.7-6.14L4.8 22H2.04l6.98-7.97L2 2h7.13l4.24 5.62L18.244 2Zm-2.45 18h1.86L7.27 4h-1.9l10.42 16Z" />
+    </svg>
+  );
+}
 
 export const Route = createFileRoute("/")({
   component: Index,
