@@ -267,19 +267,16 @@ function Index() {
     const k = len > max ? max / len : 1;
     const kx = dx * k, ky = dy * k;
     setJoyKnob({ x: kx, y: ky, active: true });
-    const nlen = Math.hypot(kx, ky) / max;
-    if (nlen < 0.15) {
+    const nlen = Math.hypot(kx, ky) / max; // 0..1
+    const DEAD = 0.2;
+    if (nlen < DEAD) {
       stateRef.current.moveDir = { x: 0, y: 0 };
     } else {
+      // Analog magnitude with smooth easing — slower near center, full speed only at edge.
+      const t = (nlen - DEAD) / (1 - DEAD);
+      const mag = Math.min(1, t * t); // ease-in for gentler control
       const l = Math.hypot(kx, ky) || 1;
-      stateRef.current.moveDir = { x: kx / l, y: ky / l };
-    }
-    if (e.pointerType !== "mouse" && nlen > 0.2) {
-      const l = Math.hypot(kx, ky) || 1;
-      stateRef.current.mouse = {
-        x: stateRef.current.pos.x + (kx / l) * 120,
-        y: stateRef.current.pos.y + (ky / l) * 120,
-      };
+      stateRef.current.moveDir = { x: (kx / l) * mag, y: (ky / l) * mag };
     }
   };
 
