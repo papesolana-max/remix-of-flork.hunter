@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
 import florkHeroImg from "@/assets/flork-hero.png";
+import florkTitleImg from "@/assets/flork-hunter-title.png";
 import mapForestTile from "@/assets/map-tile-forest.png";
 import mapSwampTile from "@/assets/map-tile-swamp.png";
 import mapRuinsTile from "@/assets/map-tile-ruins.png";
