@@ -1010,29 +1010,23 @@ function Index() {
           <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/85 via-black/55 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/65 to-transparent" />
 
-          {/* 3-row layout */}
-          <div className="relative z-10 h-full w-full flex flex-col justify-between py-2 sm:py-3 px-4">
-            {/* TOP: Title hugging the very top, tagline tight below */}
-            <div className="flex flex-col items-center text-center pt-0">
+          {/* Fixed overlay zones: top stays above PulseChain logo, bottom stays below the character art */}
+          <div className="relative z-10 h-full w-full px-4">
+            <div className="absolute inset-x-0 top-3 sm:top-5 md:top-7 flex flex-col items-center text-center">
               <img
                 src={florkTitleImg}
                 alt="Flork Hunter"
                 width={1584}
                 height={672}
-                className="w-full max-w-[420px] sm:max-w-[560px] md:max-w-[680px] h-auto select-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.75)]"
+                className="w-full max-w-[400px] sm:max-w-[540px] md:max-w-[640px] h-auto select-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.78)]"
                 draggable={false}
               />
-              <p className="font-game-body -mt-3 sm:-mt-4 md:-mt-6 text-[11px] sm:text-xs md:text-sm text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
+              <p className="font-game-body mt-1 sm:mt-2 text-[11px] sm:text-xs md:text-sm text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
                 Hunt monsters · Collect coins · Survive 7 waves
               </p>
             </div>
 
-            {/* MIDDLE: spacer so the artwork breathes */}
-            <div className="flex-1" />
-
-            {/* BOTTOM: controls hint, buttons, social icons */}
-            <div className="flex flex-col items-center gap-4 pb-2 sm:pb-4">
-              {/* Controls hint */}
+            <div className="absolute inset-x-0 bottom-5 sm:bottom-7 md:bottom-8 flex flex-col items-center gap-4">
               <div className="font-game-body text-white/85 text-sm sm:text-base text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 <span className="hidden md:inline">
                   <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
@@ -1042,13 +1036,12 @@ function Index() {
                 <span className="md:hidden">Joystick to move · FIRE to shoot</span>
               </div>
 
-              {/* Action buttons — 3D image buttons matching the title style */}
               <div className="flex flex-col sm:flex-row gap-4 items-center">
                 <button
                   onClick={handleStart}
                   disabled={loading}
                   aria-label="Start Hunting"
-                  className="relative group hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 drop-shadow-[0_8px_18px_rgba(217,70,239,0.55)]"
+                  className="relative hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 drop-shadow-[0_8px_18px_rgba(217,70,239,0.55)]"
                 >
                   <img
                     src={btnStartImg}
@@ -1057,7 +1050,7 @@ function Index() {
                     height={512}
                     loading="lazy"
                     draggable={false}
-                    className="w-[240px] sm:w-[280px] h-auto select-none"
+                    className="w-[220px] sm:w-[250px] md:w-[270px] h-auto select-none"
                   />
                   {loading && (
                     <span className="absolute inset-0 flex items-center justify-center font-game text-white text-base sm:text-lg tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
@@ -1078,13 +1071,12 @@ function Index() {
                     height={512}
                     loading="lazy"
                     draggable={false}
-                    className="w-[240px] sm:w-[280px] h-auto select-none"
+                    className="w-[220px] sm:w-[250px] md:w-[270px] h-auto select-none"
                   />
                 </button>
               </div>
 
-              {/* Social icons — real SVG icons, no emoji */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 pt-1">
                 <a
                   href="https://pulsechainflork.fun"
                   target="_blank"
