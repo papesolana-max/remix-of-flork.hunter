@@ -18,8 +18,6 @@ import {
   unlockAudio,
   setMusicEnabled,
   setSfxEnabled,
-  isMusicEnabled,
-  isSfxEnabled,
 } from "@/lib/audio";
 
 export const Route = createFileRoute("/")({
