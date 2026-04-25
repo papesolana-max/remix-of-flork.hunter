@@ -983,7 +983,7 @@ function Index() {
                 required
               />
               <input
-                type="text" placeholder="Wallet (e.g. 0x... or sol address)"
+                type="text" placeholder="Wallet (e.g. 0x...)"
                 value={form.wallet}
                 onChange={(e) => setForm((f) => ({ ...f, wallet: e.target.value }))}
                 maxLength={128}
