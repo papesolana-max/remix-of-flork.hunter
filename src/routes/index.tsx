@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
 import florkHeroImg from "@/assets/flork-hero.png";
+import florkTitleImg from "@/assets/flork-hunter-title.png";
 import mapForestTile from "@/assets/map-tile-forest.png";
 import mapSwampTile from "@/assets/map-tile-swamp.png";
 import mapRuinsTile from "@/assets/map-tile-ruins.png";
@@ -882,38 +883,37 @@ function Index() {
       </svg>
 
       {/* Top HUD */}
-      <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 flex items-start justify-between gap-2 pointer-events-none z-10">
-        <div className="flex flex-col gap-2 pointer-events-auto">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-transparent bg-clip-text drop-shadow-lg" style={{ backgroundImage: "var(--gradient-flork)" }}>
-            FLORK HUNTER
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
-            <div className="flex items-center gap-0.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <span key={i} className="text-base sm:text-lg" style={{ filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)" }}>❤️</span>
-              ))}
+      {running && (
+        <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 flex items-start justify-between gap-2 pointer-events-none z-10">
+          <div className="flex flex-col gap-2 pointer-events-auto">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
+              <div className="flex items-center gap-0.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className="text-base sm:text-lg" style={{ filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)" }}>❤️</span>
+                ))}
+              </div>
+              <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">🪙 <span className="font-bold">{hud.gold}</span></div>
+              <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">⚔️ <span className="font-bold">{hud.kills}</span></div>
+              <div className="text-sm font-bold px-3 py-1 rounded-full text-white" style={{ background: "var(--gradient-flork)" }}>Wave {hud.wave}/7</div>
+              <div className="hidden sm:block bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-xs">Best: <span className="font-mono font-bold">{best}</span></div>
             </div>
-            <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">🪙 <span className="font-bold">{hud.gold}</span></div>
-            <div className="bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-sm font-mono">⚔️ <span className="font-bold">{hud.kills}</span></div>
-            <div className="text-sm font-bold px-3 py-1 rounded-full text-white" style={{ background: "var(--gradient-flork)" }}>Wave {hud.wave}/7</div>
-            <div className="hidden sm:block bg-black/40 backdrop-blur-sm rounded-full px-3 py-1 text-xs">Best: <span className="font-mono font-bold">{best}</span></div>
           </div>
-        </div>
 
-        <div className="flex flex-col items-end gap-2 pointer-events-auto">
-          <div className="flex gap-2">
-            <button onClick={toggleMusic} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle music">
-              {musicOn ? "🎵" : "🔇"}
-            </button>
-            <button onClick={toggleSfx} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle SFX">
-              {sfxOn ? "🔊" : "🔈"}
-            </button>
-            <button onClick={() => setShowLB((v) => !v)} className="px-4 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white text-sm font-bold hover:bg-black/70 transition-colors">
-              🏆 {showLB ? "Hide" : "Leaderboard"}
-            </button>
+          <div className="flex flex-col items-end gap-2 pointer-events-auto">
+            <div className="flex gap-2">
+              <button onClick={toggleMusic} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle music">
+                {musicOn ? "🎵" : "🔇"}
+              </button>
+              <button onClick={toggleSfx} className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white hover:bg-black/70 transition-colors" title="Toggle SFX">
+                {sfxOn ? "🔊" : "🔈"}
+              </button>
+              <button onClick={() => setShowLB((v) => !v)} className="px-4 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/20 text-white text-sm font-bold hover:bg-black/70 transition-colors">
+                🏆 {showLB ? "Hide" : "Leaderboard"}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Leaderboard modal — full-screen overlay (outside the game viewport) */}
       {showLB && (
@@ -1012,12 +1012,15 @@ function Index() {
           <div className="relative z-10 h-full w-full flex flex-col justify-between py-5 sm:py-7 px-4">
             {/* TOP: Title above PulseChain logo + small tagline below */}
             <div className="flex flex-col items-center text-center pt-2 sm:pt-4">
-              <h1
-                className="font-game text-shadow-game title-flork-bright text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-widest"
-              >
-                FLORK HUNTER
-              </h1>
-              <p className="font-game-body mt-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.25em] uppercase">
+              <img
+                src={florkTitleImg}
+                alt="Flork Hunter"
+                width={1584}
+                height={672}
+                className="w-full max-w-[1120px] h-auto select-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.7)]"
+                draggable={false}
+              />
+              <p className="font-game-body mt-2 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
                 Hunt monsters · Collect coins · Survive 7 waves
               </p>
             </div>
