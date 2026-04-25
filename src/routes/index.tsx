@@ -267,19 +267,16 @@ function Index() {
     const k = len > max ? max / len : 1;
     const kx = dx * k, ky = dy * k;
     setJoyKnob({ x: kx, y: ky, active: true });
-    const nlen = Math.hypot(kx, ky) / max;
-    if (nlen < 0.15) {
+    const nlen = Math.hypot(kx, ky) / max; // 0..1
+    const DEAD = 0.2;
+    if (nlen < DEAD) {
       stateRef.current.moveDir = { x: 0, y: 0 };
     } else {
+      // Analog magnitude with smooth easing — slower near center, full speed only at edge.
+      const t = (nlen - DEAD) / (1 - DEAD);
+      const mag = Math.min(1, t * t); // ease-in for gentler control
       const l = Math.hypot(kx, ky) || 1;
-      stateRef.current.moveDir = { x: kx / l, y: ky / l };
-    }
-    if (e.pointerType !== "mouse" && nlen > 0.2) {
-      const l = Math.hypot(kx, ky) || 1;
-      stateRef.current.mouse = {
-        x: stateRef.current.pos.x + (kx / l) * 120,
-        y: stateRef.current.pos.y + (ky / l) * 120,
-      };
+      stateRef.current.moveDir = { x: (kx / l) * mag, y: (ky / l) * mag };
     }
   };
 
@@ -373,14 +370,21 @@ function Index() {
 
       // movement
       let dx = 0, dy = 0;
-      if (s.keys["w"] || s.keys["arrowup"]) dy -= 1;
-      if (s.keys["s"] || s.keys["arrowdown"]) dy += 1;
-      if (s.keys["a"] || s.keys["arrowleft"]) dx -= 1;
-      if (s.keys["d"] || s.keys["arrowright"]) dx += 1;
-      if (dx || dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
-      else { dx = s.moveDir.x; dy = s.moveDir.y; }
+      let usingKeys = false;
+      if (s.keys["w"] || s.keys["arrowup"]) { dy -= 1; usingKeys = true; }
+      if (s.keys["s"] || s.keys["arrowdown"]) { dy += 1; usingKeys = true; }
+      if (s.keys["a"] || s.keys["arrowleft"]) { dx -= 1; usingKeys = true; }
+      if (s.keys["d"] || s.keys["arrowright"]) { dx += 1; usingKeys = true; }
+      if (usingKeys) {
+        const l = Math.hypot(dx, dy) || 1;
+        dx /= l; dy /= l;
+      } else {
+        // Joystick already provides analog magnitude (0..1)
+        dx = s.moveDir.x; dy = s.moveDir.y;
+      }
 
-      const moving = dx !== 0 || dy !== 0;
+      const mag = Math.hypot(dx, dy);
+      const moving = mag > 0.001;
       if (moving) {
         const nx = s.pos.x + dx * FLORK_SPEED;
         const ny = s.pos.y + dy * FLORK_SPEED;
