@@ -947,69 +947,80 @@ function Index() {
         </button>
       )}
 
-      {/* Start overlay */}
+      {/* Start overlay — full-page hero background with game-style font */}
       {!running && !gameOver && !won && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 px-4 overflow-y-auto py-6">
-          <img
-            src={florkHeroImg}
-            alt="PulseChain Flork crew"
-            className="w-full max-w-md md:max-w-lg mb-4 drop-shadow-[0_10px_40px_rgba(168,85,247,0.45)] select-none pointer-events-none"
-            draggable={false}
-          />
-          <div className="text-3xl sm:text-4xl md:text-6xl font-black mb-2 text-transparent bg-clip-text text-center" style={{ backgroundImage: "var(--gradient-flork)" }}>
-            FLORK HUNTER
-          </div>
-          <p className="text-white/80 mb-4 text-sm sm:text-base md:text-lg text-center max-w-lg">
-            Explore mystical maps, hunt monsters, collect coins, and survive 7 waves to claim victory!
-          </p>
-          <div className="text-white/60 text-xs sm:text-sm mb-5 text-center max-w-md">
-            <span className="hidden md:inline">
-              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">WASD</kbd> move ·{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Mouse</kbd> aim ·{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Click/Space</kbd> shoot
-            </span>
-            <span className="md:hidden">Joystick to move · FIRE button to shoot</span>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 items-center mb-5">
-            <button
-              onClick={start}
-              className="px-10 py-4 rounded-full font-bold text-white text-lg sm:text-xl hover:scale-105 transition-transform"
-              style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+        <div
+          className="absolute inset-0 z-30 overflow-hidden"
+          style={{
+            backgroundImage: `url(${florkHeroImg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          {/* Dark gradient scrim for readability — keeps hero visible at top, content readable at bottom */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/90" />
+
+          {/* Content stack — pushed to bottom so the artwork breathes at the top */}
+          <div className="relative z-10 h-full w-full flex flex-col items-center justify-end px-4 pb-6 sm:pb-10 overflow-y-auto">
+            <div
+              className="font-game text-shadow-game text-2xl sm:text-4xl md:text-5xl mb-3 text-transparent bg-clip-text text-center leading-tight"
+              style={{ backgroundImage: "var(--gradient-flork)" }}
             >
-              START HUNTING
-            </button>
-            <button
-              onClick={() => setShowLB((v) => !v)}
-              className="px-8 py-4 rounded-full font-bold text-white text-base sm:text-lg bg-white/10 border-2 border-white/30 backdrop-blur-sm hover:bg-white/20 transition-colors"
-            >
-              🏆 {showLB ? "Hide" : "Leaderboard"}
-            </button>
-          </div>
-          <div className="flex items-center gap-3 text-white/80 text-sm">
-            <a
-              href="https://pulsechainflork.fun"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
-            >
-              🌐 Website
-            </a>
-            <a
-              href="https://x.com/FlorkOGPLS"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
-            >
-              𝕏 Twitter
-            </a>
-            <a
-              href="https://t.me/Flork_PLS"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
-            >
-              ✈ Telegram
-            </a>
+              FLORK HUNTER
+            </div>
+            <p className="font-game-body text-white/90 mb-4 text-lg sm:text-xl md:text-2xl text-center max-w-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              Hunt monsters · Collect coins · Survive 7 waves
+            </p>
+            <div className="font-game-body text-white/80 text-base sm:text-lg mb-5 text-center max-w-md drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              <span className="hidden md:inline">
+                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">WASD</kbd> move ·{" "}
+                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">MOUSE</kbd> aim ·{" "}
+                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">CLICK</kbd> shoot
+              </span>
+              <span className="md:hidden">Joystick to move · FIRE to shoot</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 items-center mb-5">
+              <button
+                onClick={start}
+                className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform"
+                style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+              >
+                ▶ START HUNTING
+              </button>
+              <button
+                onClick={() => setShowLB((v) => !v)}
+                className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white bg-black/60 border-2 border-white/40 backdrop-blur-sm hover:bg-black/80 active:scale-95 transition-transform"
+              >
+                🏆 {showLB ? "HIDE" : "LEADERBOARD"}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 font-game text-[10px] sm:text-xs">
+              <a
+                href="https://pulsechainflork.fun"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
+              >
+                🌐 WEB
+              </a>
+              <a
+                href="https://x.com/FlorkOGPLS"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
+              >
+                𝕏 TWITTER
+              </a>
+              <a
+                href="https://t.me/Flork_PLS"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
+              >
+                ✈ TG
+              </a>
+            </div>
           </div>
         </div>
       )}
