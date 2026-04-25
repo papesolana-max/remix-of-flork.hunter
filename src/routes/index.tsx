@@ -168,6 +168,8 @@ function Index() {
     const filtered = trees.filter((t) => (t.x - cx) ** 2 + (t.y - cy) ** 2 > 180 ** 2);
     const newMap = Math.floor(Math.random() * MAPS.length);
     setMapIdx(newMap);
+    // Bug #2 fix: push trees to React state so JSX repaints them on a fresh game.
+    setTrees(filtered);
 
     stateRef.current = {
       pos: { x: cx, y: cy },
@@ -241,7 +243,9 @@ function Index() {
   const joyRef = useRef<HTMLDivElement>(null);
   const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0, active: false });
   const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Bug #6 fix: capture on currentTarget (the joystick container), not e.target
+    // — the inner knob has pointer-events:none so capturing on it silently fails on mobile.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     updateJoy(e);
   };
   const onJoyMove = (e: React.PointerEvent<HTMLDivElement>) => {
