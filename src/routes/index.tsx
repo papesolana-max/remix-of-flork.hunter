@@ -20,6 +20,16 @@ import {
   setMusicEnabled,
   setSfxEnabled,
 } from "@/lib/audio";
+import { Globe, Send, Trophy, Play, X } from "lucide-react";
+
+// Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2H21l-6.52 7.45L22 22h-6.99l-4.7-6.14L4.8 22H2.04l6.98-7.97L2 2h7.13l4.24 5.62L18.244 2Zm-2.45 18h1.86L7.27 4h-1.9l10.42 16Z" />
+    </svg>
+  );
+}
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -93,6 +103,8 @@ function Index() {
   }, []);
   const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingPct, setLoadingPct] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -187,6 +199,29 @@ function Index() {
     setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
     setRunning(true);
   }, [musicOn]);
+
+  // Loading bar wrapper for the start button — gives a polished "loading" feel.
+  const handleStart = useCallback(() => {
+    if (loading) return;
+    unlockAudio();
+    setLoading(true);
+    setLoadingPct(0);
+    const startTs = performance.now();
+    const DURATION = 1100;
+    const tick = () => {
+      const elapsed = performance.now() - startTs;
+      const pct = Math.min(100, (elapsed / DURATION) * 100);
+      setLoadingPct(pct);
+      if (pct < 100) {
+        requestAnimationFrame(tick);
+      } else {
+        setLoading(false);
+        setLoadingPct(0);
+        start();
+      }
+    };
+    requestAnimationFrame(tick);
+  }, [loading, start]);
 
   // keyboard
   useEffect(() => {
@@ -880,40 +915,51 @@ function Index() {
         </div>
       </div>
 
-      {/* Leaderboard panel (slides in) — z-40 so it appears above the start overlay */}
-      <aside className={`absolute top-20 right-3 sm:top-24 sm:right-4 w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-white/30 bg-black/80 backdrop-blur-md p-3 sm:p-4 text-white z-40 transition-all font-game-body ${showLB ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"}`}>
-        {/* Close button so users can dismiss the leaderboard from the start screen too */}
-        <button
+      {/* Leaderboard modal — full-screen overlay (outside the game viewport) */}
+      {showLB && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           onClick={() => setShowLB(false)}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 text-white text-sm leading-none flex items-center justify-center"
-          aria-label="Close leaderboard"
         >
-          ✕
-        </button>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-bold font-game">🏆 LEADERBOARD</h2>
-          <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1 mr-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
-          </span>
+          <div
+            className="relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border-2 border-white/30 bg-gradient-to-b from-zinc-900/95 to-black/95 p-5 sm:p-6 text-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: "0 0 80px rgba(168, 85, 247, 0.35)" }}
+          >
+            <button
+              onClick={() => setShowLB(false)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 text-white flex items-center justify-center transition-colors"
+              aria-label="Close leaderboard"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="w-6 h-6 text-yellow-400" />
+              <h2 className="font-game text-base sm:text-lg tracking-wider">LEADERBOARD</h2>
+              <span className="ml-auto mr-8 text-[10px] uppercase tracking-wider opacity-70 flex items-center gap-1.5 font-game-body">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> LIVE
+              </span>
+            </div>
+            {leaderboard.length === 0 ? (
+              <p className="font-game-body text-lg opacity-70 text-center py-8">No scores yet. Be the first!</p>
+            ) : (
+              <ol className="space-y-2 font-game-body">
+                {leaderboard.map((row, i) => (
+                  <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
+                    style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
+                    <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate text-white">{row.username}</div>
+                      <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
+                    </div>
+                    <span className="font-mono font-bold text-right text-yellow-300">{row.score}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
-        {leaderboard.length === 0 ? (
-          <p className="text-base opacity-70">No scores yet. Be the first!</p>
-        ) : (
-          <ol className="space-y-1.5">
-            {leaderboard.map((row, i) => (
-              <li key={row.id} className="flex items-center gap-2 text-base rounded-lg px-2 py-1.5"
-                style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "transparent" }}>
-                <span className="font-bold w-5 text-center opacity-70">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{row.username}</div>
-                  <div className="text-[10px] opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                </div>
-                <span className="font-mono font-bold text-right">{row.score}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </aside>
+      )}
 
       {/* Mobile joystick */}
       {running && (
@@ -947,7 +993,7 @@ function Index() {
         </button>
       )}
 
-      {/* Start overlay — full-page hero background with game-style font */}
+      {/* Start overlay — full-page hero with content panel on the RIGHT so the artwork stays visible on the LEFT */}
       {!running && !gameOver && !won && (
         <div
           className="absolute inset-0 z-30 overflow-hidden"
@@ -958,68 +1004,102 @@ function Index() {
             backgroundRepeat: "no-repeat",
           }}
         >
-          {/* Dark gradient scrim for readability — keeps hero visible at top, content readable at bottom */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/55 to-black/90" />
+          {/* Side scrim — keeps left side (artwork) bright, right side darkened for the content panel */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/40 to-black/85 hidden md:block" />
+          {/* Vertical scrim for mobile (artwork on top, panel on bottom) */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/90 md:hidden" />
 
-          {/* Content stack — pushed to bottom so the artwork breathes at the top */}
-          <div className="relative z-10 h-full w-full flex flex-col items-center justify-end px-4 pb-6 sm:pb-10 overflow-y-auto">
-            <div
-              className="font-game text-shadow-game text-2xl sm:text-4xl md:text-5xl mb-3 text-transparent bg-clip-text text-center leading-tight"
-              style={{ backgroundImage: "var(--gradient-flork)" }}
-            >
-              FLORK HUNTER
-            </div>
-            <p className="font-game-body text-white/90 mb-4 text-lg sm:text-xl md:text-2xl text-center max-w-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              Hunt monsters · Collect coins · Survive 7 waves
-            </p>
-            <div className="font-game-body text-white/80 text-base sm:text-lg mb-5 text-center max-w-md drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              <span className="hidden md:inline">
-                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">WASD</kbd> move ·{" "}
-                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">MOUSE</kbd> aim ·{" "}
-                <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30">CLICK</kbd> shoot
-              </span>
-              <span className="md:hidden">Joystick to move · FIRE to shoot</span>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 items-center mb-5">
-              <button
-                onClick={start}
-                className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform"
-                style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+          {/* Content panel — right side on desktop, bottom on mobile */}
+          <div className="relative z-10 h-full w-full flex md:items-center md:justify-end items-end justify-center">
+            <div className="w-full md:w-[55%] lg:w-[48%] max-w-2xl flex flex-col items-center md:items-start px-5 sm:px-8 pb-6 md:pb-0 md:pr-10 lg:pr-16 max-h-full overflow-y-auto">
+              {/* Title with gradient + glow */}
+              <div
+                className="font-game text-shadow-game text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-3 text-transparent bg-clip-text leading-none text-center md:text-left"
+                style={{ backgroundImage: "var(--gradient-flork)" }}
               >
-                ▶ START HUNTING
-              </button>
-              <button
-                onClick={() => setShowLB((v) => !v)}
-                className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white bg-black/60 border-2 border-white/40 backdrop-blur-sm hover:bg-black/80 active:scale-95 transition-transform"
-              >
-                🏆 {showLB ? "HIDE" : "LEADERBOARD"}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 font-game text-[10px] sm:text-xs">
-              <a
-                href="https://pulsechainflork.fun"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
-              >
-                🌐 WEB
-              </a>
-              <a
-                href="https://x.com/FlorkOGPLS"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
-              >
-                𝕏 TWITTER
-              </a>
-              <a
-                href="https://t.me/Flork_PLS"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-2 rounded-lg bg-black/60 border-2 border-white/30 text-white hover:bg-black/80 transition-colors"
-              >
-                ✈ TG
-              </a>
+                FLORK
+                <br />
+                HUNTER
+              </div>
+
+              <p className="font-game-body text-white/95 mb-5 text-xl sm:text-2xl md:text-2xl text-center md:text-left drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                Hunt monsters · Collect coins
+                <br className="hidden sm:block" /> Survive 7 waves
+              </p>
+
+              {/* Controls hint */}
+              <div className="font-game-body text-white/85 text-base sm:text-lg mb-6 text-center md:text-left drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span className="hidden md:inline">
+                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
+                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">MOUSE</kbd>aim ·{" "}
+                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">CLICK</kbd>shoot
+                </span>
+                <span className="md:hidden">Joystick to move · FIRE to shoot</span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-5 w-full sm:w-auto">
+                <button
+                  onClick={handleStart}
+                  disabled={loading}
+                  className="relative overflow-hidden font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 flex items-center justify-center gap-2 min-w-[200px]"
+                  style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+                >
+                  {loading ? (
+                    <>
+                      <span className="relative z-10">LOADING {Math.round(loadingPct)}%</span>
+                      <span
+                        className="absolute left-0 top-0 h-full bg-white/30 transition-[width] duration-100 ease-linear"
+                        style={{ width: `${loadingPct}%` }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>START HUNTING</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowLB(true)}
+                  disabled={loading}
+                  className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white bg-black/70 border-2 border-white/40 backdrop-blur-sm hover:bg-black/90 active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <span>LEADERBOARD</span>
+                </button>
+              </div>
+
+              {/* Social icons — real SVG icons, no emoji */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <a
+                  href="https://pulsechainflork.fun"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Website"
+                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                >
+                  <Globe className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://x.com/FlorkOGPLS"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="X (Twitter)"
+                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                >
+                  <XIcon className="w-4 h-4" />
+                </a>
+                <a
+                  href="https://t.me/Flork_PLS"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Telegram"
+                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                >
+                  <Send className="w-5 h-5" />
+                </a>
+              </div>
             </div>
           </div>
         </div>
