@@ -735,8 +735,15 @@ function Index() {
         className="absolute inset-0 w-full h-full"
         style={{ cursor: "none" }}
         onPointerMove={onPointerMove}
+        onContextMenu={(e) => e.preventDefault()}
         onPointerDown={(e) => {
           unlockAudio();
+          // Ignore right / middle / aux mouse buttons so they don't open the
+          // browser context menu, drag-select the SVG, or otherwise break input.
+          if (e.pointerType === "mouse" && e.button !== 0) {
+            e.preventDefault();
+            return;
+          }
           if (e.pointerType === "mouse") {
             if (running) fire();
             else if (!gameOver && !won) start();
