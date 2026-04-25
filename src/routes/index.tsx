@@ -18,8 +18,6 @@ import {
   unlockAudio,
   setMusicEnabled,
   setSfxEnabled,
-  isMusicEnabled,
-  isSfxEnabled,
 } from "@/lib/audio";
 
 export const Route = createFileRoute("/")({
@@ -84,16 +82,26 @@ function Index() {
   const [mapIdx, setMapIdx] = useState(0);
   const [musicOn, setMusicOn] = useState(true);
   const [sfxOn, setSfxOn] = useState(true);
-  const [best, setBest] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(localStorage.getItem("flork-hunter-best") || 0);
-  });
+  // Bug #1 fix: read localStorage in effect (not initializer) to avoid SSR/CSR hydration mismatch (React error #418).
+  const [best, setBest] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = Number(localStorage.getItem("flork-hunter-best") || 0);
+    if (!Number.isNaN(v)) setBest(v);
+  }, []);
   const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ username: "", wallet: "" });
+
+  // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
+  // (otherwise new trees from a fresh game don't repaint).
+  const [trees, setTrees] = useState<Tree[]>([]);
+  // Bug #3 fix: drive the crosshair from React state so it follows the mouse smoothly,
+  // not just every 6 ticks when HUD updates.
+  const [crosshair, setCrosshair] = useState<Vec>({ x: VIEW_W / 2, y: VIEW_H / 2 });
 
   const stateRef = useRef({
     pos: { x: WORLD_W / 2, y: WORLD_H / 2 } as Vec,
@@ -158,6 +166,8 @@ function Index() {
     const filtered = trees.filter((t) => (t.x - cx) ** 2 + (t.y - cy) ** 2 > 180 ** 2);
     const newMap = Math.floor(Math.random() * MAPS.length);
     setMapIdx(newMap);
+    // Bug #2 fix: push trees to React state so JSX repaints them on a fresh game.
+    setTrees(filtered);
 
     stateRef.current = {
       pos: { x: cx, y: cy },
@@ -223,13 +233,17 @@ function Index() {
       x: s.cam.x - VIEW_W / 2 + vx,
       y: s.cam.y - VIEW_H / 2 + vy,
     };
+    // Bug #3 fix: keep React-driven crosshair in sync with pointer.
+    setCrosshair({ x: vx, y: vy });
   }, []);
 
   // Joystick
   const joyRef = useRef<HTMLDivElement>(null);
   const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0, active: false });
   const onJoyStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Bug #6 fix: capture on currentTarget (the joystick container), not e.target
+    // — the inner knob has pointer-events:none so capturing on it silently fails on mobile.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     updateJoy(e);
   };
   const onJoyMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -717,7 +731,9 @@ function Index() {
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         preserveAspectRatio="xMidYMid slice"
-        className="absolute inset-0 w-full h-full cursor-crosshair"
+        // Bug #7 fix: hide native cursor — we render our own crosshair sprite below.
+        className="absolute inset-0 w-full h-full"
+        style={{ cursor: "none" }}
         onPointerMove={onPointerMove}
         onPointerDown={(e) => {
           unlockAudio();
@@ -786,7 +802,7 @@ function Index() {
           <rect x="0" y="0" width={WORLD_W} height={WORLD_H} fill="url(#grain)" pointerEvents="none" />
 
           {/* Trees */}
-          {stateRef.current.trees.map((t, i) => (
+          {trees.map((t, i) => (
             <g key={i}>
               <ellipse cx={t.x} cy={t.y + t.r * 0.55} rx={t.r * 0.85} ry={t.r * 0.22} fill="rgba(0,0,0,0.45)" />
               <image
@@ -826,7 +842,7 @@ function Index() {
 
         {/* Crosshair (screen-space) */}
         {running && (
-          <g pointerEvents="none" transform={`translate(${(stateRef.current.mouse.x - stateRef.current.cam.x) + VIEW_W / 2} ${(stateRef.current.mouse.y - stateRef.current.cam.y) + VIEW_H / 2})`}>
+          <g pointerEvents="none" transform={`translate(${crosshair.x} ${crosshair.y})`}>
             <circle r="13" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="2" />
             <circle r="2" fill="white" />
           </g>
@@ -1011,5 +1027,3 @@ function Index() {
   );
 }
 
-// keep referenced for tree-shaking safety (TS unused warn)
-void isMusicEnabled; void isSfxEnabled;
