@@ -84,16 +84,26 @@ function Index() {
   const [mapIdx, setMapIdx] = useState(0);
   const [musicOn, setMusicOn] = useState(true);
   const [sfxOn, setSfxOn] = useState(true);
-  const [best, setBest] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return Number(localStorage.getItem("flork-hunter-best") || 0);
-  });
+  // Bug #1 fix: read localStorage in effect (not initializer) to avoid SSR/CSR hydration mismatch (React error #418).
+  const [best, setBest] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = Number(localStorage.getItem("flork-hunter-best") || 0);
+    if (!Number.isNaN(v)) setBest(v);
+  }, []);
   const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ username: "", wallet: "" });
+
+  // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
+  // (otherwise new trees from a fresh game don't repaint).
+  const [trees, setTrees] = useState<Tree[]>([]);
+  // Bug #3 fix: drive the crosshair from React state so it follows the mouse smoothly,
+  // not just every 6 ticks when HUD updates.
+  const [crosshair, setCrosshair] = useState<Vec>({ x: VIEW_W / 2, y: VIEW_H / 2 });
 
   const stateRef = useRef({
     pos: { x: WORLD_W / 2, y: WORLD_H / 2 } as Vec,
@@ -223,6 +233,8 @@ function Index() {
       x: s.cam.x - VIEW_W / 2 + vx,
       y: s.cam.y - VIEW_H / 2 + vy,
     };
+    // Bug #3 fix: keep React-driven crosshair in sync with pointer.
+    setCrosshair({ x: vx, y: vy });
   }, []);
 
   // Joystick
