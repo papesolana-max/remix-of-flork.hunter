@@ -1012,12 +1012,15 @@ function Index() {
           <div className="relative z-10 h-full w-full flex flex-col justify-between py-5 sm:py-7 px-4">
             {/* TOP: Title above PulseChain logo + small tagline below */}
             <div className="flex flex-col items-center text-center pt-2 sm:pt-4">
-              <h1
-                className="font-game text-shadow-game title-flork-bright text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-widest"
-              >
-                FLORK HUNTER
-              </h1>
-              <p className="font-game-body mt-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.25em] uppercase">
+              <img
+                src={florkTitleImg}
+                alt="Flork Hunter"
+                width={1584}
+                height={672}
+                className="w-full max-w-[1120px] h-auto select-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.7)]"
+                draggable={false}
+              />
+              <p className="font-game-body mt-2 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
                 Hunt monsters · Collect coins · Survive 7 waves
               </p>
             </div>
