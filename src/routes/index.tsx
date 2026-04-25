@@ -746,26 +746,44 @@ function Index() {
             <stop offset="55%" stopColor="rgba(0,0,0,0)" />
             <stop offset="100%" stopColor="rgba(0,0,0,0.6)" />
           </radialGradient>
+          {/* Soft edge mask so the single stretched map fades into darkness instead of showing tile seams */}
+          <radialGradient id="mapFade" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="white" stopOpacity="1" />
+            <stop offset="70%" stopColor="white" stopOpacity="1" />
+            <stop offset="100%" stopColor="black" stopOpacity="1" />
+          </radialGradient>
+          <mask id="mapMask">
+            <rect x="0" y="0" width={WORLD_W} height={WORLD_H} fill="url(#mapFade)" />
+          </mask>
+          {/* Subtle organic noise overlay to break up any visible stretching */}
+          <pattern id="grain" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+            <rect width="240" height="240" fill="rgba(0,0,0,0)" />
+            <circle cx="40" cy="60" r="1.2" fill="rgba(255,255,255,0.04)" />
+            <circle cx="180" cy="30" r="1" fill="rgba(0,0,0,0.06)" />
+            <circle cx="120" cy="180" r="1.4" fill="rgba(255,255,255,0.03)" />
+            <circle cx="210" cy="200" r="0.9" fill="rgba(0,0,0,0.05)" />
+            <circle cx="80" cy="140" r="1.1" fill="rgba(255,255,255,0.03)" />
+          </pattern>
         </defs>
 
         {/* World (camera-translated) */}
         <g ref={worldRef}>
-          {/* Tile the map across the world (3x3) so it scrolls with camera */}
-          {Array.from({ length: 3 }).map((_, row) =>
-            Array.from({ length: 3 }).map((_, col) => (
-              <image
-                key={`${row}-${col}`}
-                ref={row === 0 && col === 0 ? bgRef : undefined}
-                href={MAPS[mapIdx]}
-                x={col * (WORLD_W / 3)}
-                y={row * (WORLD_H / 3)}
-                width={WORLD_W / 3}
-                height={WORLD_H / 3}
-                preserveAspectRatio="xMidYMid slice"
-                opacity={(row + col) % 2 === 0 ? 1 : 0.92}
-              />
-            )),
-          )}
+          {/* Solid dark base so the faded edges of the map blend naturally */}
+          <rect x="0" y="0" width={WORLD_W} height={WORLD_H} fill="#0a1410" />
+          {/* One single large map stretched across the whole world — no tile seams.
+              Masked with a radial fade so the edges blend into the dark base. */}
+          <image
+            ref={bgRef}
+            href={MAPS[mapIdx]}
+            x={0}
+            y={0}
+            width={WORLD_W}
+            height={WORLD_H}
+            preserveAspectRatio="xMidYMid slice"
+            mask="url(#mapMask)"
+          />
+          {/* Grain overlay to add texture and disguise any stretching artifacts */}
+          <rect x="0" y="0" width={WORLD_W} height={WORLD_H} fill="url(#grain)" pointerEvents="none" />
 
           {/* Trees */}
           {stateRef.current.trees.map((t, i) => (
