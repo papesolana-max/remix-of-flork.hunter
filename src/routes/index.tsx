@@ -93,6 +93,8 @@ function Index() {
   }, []);
   const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingPct, setLoadingPct] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
