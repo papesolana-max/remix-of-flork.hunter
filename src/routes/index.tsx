@@ -880,20 +880,28 @@ function Index() {
         </div>
       </div>
 
-      {/* Leaderboard panel (slides in) */}
-      <aside className={`absolute top-20 right-3 sm:top-24 sm:right-4 w-[min(92vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-white/20 bg-black/60 backdrop-blur-md p-3 sm:p-4 text-white z-20 transition-all ${showLB ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"}`}>
+      {/* Leaderboard panel (slides in) — z-40 so it appears above the start overlay */}
+      <aside className={`absolute top-20 right-3 sm:top-24 sm:right-4 w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-white/30 bg-black/80 backdrop-blur-md p-3 sm:p-4 text-white z-40 transition-all font-game-body ${showLB ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"}`}>
+        {/* Close button so users can dismiss the leaderboard from the start screen too */}
+        <button
+          onClick={() => setShowLB(false)}
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 text-white text-sm leading-none flex items-center justify-center"
+          aria-label="Close leaderboard"
+        >
+          ✕
+        </button>
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-base font-bold">🏆 Leaderboard</h2>
-          <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1">
+          <h2 className="text-sm font-bold font-game">🏆 LEADERBOARD</h2>
+          <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1 mr-7">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
           </span>
         </div>
         {leaderboard.length === 0 ? (
-          <p className="text-xs opacity-60">No scores yet. Be the first!</p>
+          <p className="text-base opacity-70">No scores yet. Be the first!</p>
         ) : (
           <ol className="space-y-1.5">
             {leaderboard.map((row, i) => (
-              <li key={row.id} className="flex items-center gap-2 text-sm rounded-lg px-2 py-1.5"
+              <li key={row.id} className="flex items-center gap-2 text-base rounded-lg px-2 py-1.5"
                 style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "transparent" }}>
                 <span className="font-bold w-5 text-center opacity-70">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
                 <div className="flex-1 min-w-0">
