@@ -370,14 +370,21 @@ function Index() {
 
       // movement
       let dx = 0, dy = 0;
-      if (s.keys["w"] || s.keys["arrowup"]) dy -= 1;
-      if (s.keys["s"] || s.keys["arrowdown"]) dy += 1;
-      if (s.keys["a"] || s.keys["arrowleft"]) dx -= 1;
-      if (s.keys["d"] || s.keys["arrowright"]) dx += 1;
-      if (dx || dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
-      else { dx = s.moveDir.x; dy = s.moveDir.y; }
+      let usingKeys = false;
+      if (s.keys["w"] || s.keys["arrowup"]) { dy -= 1; usingKeys = true; }
+      if (s.keys["s"] || s.keys["arrowdown"]) { dy += 1; usingKeys = true; }
+      if (s.keys["a"] || s.keys["arrowleft"]) { dx -= 1; usingKeys = true; }
+      if (s.keys["d"] || s.keys["arrowright"]) { dx += 1; usingKeys = true; }
+      if (usingKeys) {
+        const l = Math.hypot(dx, dy) || 1;
+        dx /= l; dy /= l;
+      } else {
+        // Joystick already provides analog magnitude (0..1)
+        dx = s.moveDir.x; dy = s.moveDir.y;
+      }
 
-      const moving = dx !== 0 || dy !== 0;
+      const mag = Math.hypot(dx, dy);
+      const moving = mag > 0.001;
       if (moving) {
         const nx = s.pos.x + dx * FLORK_SPEED;
         const ny = s.pos.y + dy * FLORK_SPEED;
