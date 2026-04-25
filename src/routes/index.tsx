@@ -733,7 +733,9 @@ function Index() {
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         preserveAspectRatio="xMidYMid slice"
-        className="absolute inset-0 w-full h-full cursor-crosshair"
+        // Bug #7 fix: hide native cursor — we render our own crosshair sprite below.
+        className="absolute inset-0 w-full h-full"
+        style={{ cursor: "none" }}
         onPointerMove={onPointerMove}
         onPointerDown={(e) => {
           unlockAudio();
@@ -802,7 +804,7 @@ function Index() {
           <rect x="0" y="0" width={WORLD_W} height={WORLD_H} fill="url(#grain)" pointerEvents="none" />
 
           {/* Trees */}
-          {stateRef.current.trees.map((t, i) => (
+          {trees.map((t, i) => (
             <g key={i}>
               <ellipse cx={t.x} cy={t.y + t.r * 0.55} rx={t.r * 0.85} ry={t.r * 0.22} fill="rgba(0,0,0,0.45)" />
               <image
@@ -842,7 +844,7 @@ function Index() {
 
         {/* Crosshair (screen-space) */}
         {running && (
-          <g pointerEvents="none" transform={`translate(${(stateRef.current.mouse.x - stateRef.current.cam.x) + VIEW_W / 2} ${(stateRef.current.mouse.y - stateRef.current.cam.y) + VIEW_H / 2})`}>
+          <g pointerEvents="none" transform={`translate(${crosshair.x} ${crosshair.y})`}>
             <circle r="13" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="2" />
             <circle r="2" fill="white" />
           </g>
@@ -1027,5 +1029,3 @@ function Index() {
   );
 }
 
-// keep referenced for tree-shaking safety (TS unused warn)
-void isMusicEnabled; void isSfxEnabled;
