@@ -1,39 +1,43 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import url("https://fonts.googleapis.com/css2?family=Audiowide&family=Russo+One&family=Black+Ops+One&family=Rajdhani:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Titan+One&family=Luckiest+Guy&family=Rajdhani:wght@500;600;700&display=swap");
 
 @custom-variant dark (&:is(.dark *));
 
 .font-game {
-  font-family: "Black Ops One", "Audiowide", "Russo One", system-ui, sans-serif;
-  letter-spacing: 0.06em;
-  font-weight: 900;
-  -webkit-text-stroke: 0;
+  font-family: "Titan One", "Luckiest Guy", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  font-weight: 400;
 }
 .font-game-body {
-  font-family: "Rajdhani", "Russo One", system-ui, sans-serif;
+  font-family: "Rajdhani", system-ui, sans-serif;
   letter-spacing: 0.04em;
-  font-weight: 600;
+  font-weight: 700;
 }
-/* Neon title: thin outline BEHIND the gradient fill (paint-order) + strong neon glow.
-   This keeps the bright gradient visible — no more "all-black" look. */
+/* Cartoon 3D extrude title — chunky like the "RIVER ADVENTURER" reference.
+   Layered text-shadow creates depth, plus thick black outline + warm glow. */
 .text-shadow-game {
   paint-order: stroke fill;
-  -webkit-text-stroke: 4px #000;
-  filter:
-    drop-shadow(0 0 14px rgba(236, 72, 153, 1))
-    drop-shadow(0 0 32px rgba(56, 189, 248, 0.8))
-    drop-shadow(0 6px 8px rgba(0, 0, 0, 0.95));
+  -webkit-text-stroke: 5px #0b0b0b;
+  text-shadow:
+    0 2px 0 #7a3a00,
+    0 4px 0 #6a3200,
+    0 6px 0 #5a2a00,
+    0 8px 0 #4a2200,
+    0 10px 0 #3a1a00,
+    0 12px 0 #2a1200,
+    0 14px 0 #1a0a00,
+    0 16px 14px rgba(0, 0, 0, 0.9),
+    0 0 28px rgba(255, 165, 0, 0.55);
 }
 .title-flork-bright {
   background-image: linear-gradient(
     180deg,
-    #ffffff 0%,
-    #fde047 30%,
-    #fb923c 60%,
-    #ec4899 90%,
-    #a855f7 100%
+    #fff7cc 0%,
+    #ffd84d 35%,
+    #ffb020 70%,
+    #ff8a00 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
