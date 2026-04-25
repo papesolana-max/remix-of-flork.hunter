@@ -915,40 +915,51 @@ function Index() {
         </div>
       </div>
 
-      {/* Leaderboard panel (slides in) — z-40 so it appears above the start overlay */}
-      <aside className={`absolute top-20 right-3 sm:top-24 sm:right-4 w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto rounded-2xl border-2 border-white/30 bg-black/80 backdrop-blur-md p-3 sm:p-4 text-white z-40 transition-all font-game-body ${showLB ? "translate-x-0 opacity-100" : "translate-x-[110%] opacity-0 pointer-events-none"}`}>
-        {/* Close button so users can dismiss the leaderboard from the start screen too */}
-        <button
+      {/* Leaderboard modal — full-screen overlay (outside the game viewport) */}
+      {showLB && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
           onClick={() => setShowLB(false)}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 text-white text-sm leading-none flex items-center justify-center"
-          aria-label="Close leaderboard"
         >
-          ✕
-        </button>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-bold font-game">🏆 LEADERBOARD</h2>
-          <span className="text-[10px] uppercase tracking-wider opacity-60 flex items-center gap-1 mr-7">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
-          </span>
+          <div
+            className="relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl border-2 border-white/30 bg-gradient-to-b from-zinc-900/95 to-black/95 p-5 sm:p-6 text-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: "0 0 80px rgba(168, 85, 247, 0.35)" }}
+          >
+            <button
+              onClick={() => setShowLB(false)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/30 text-white flex items-center justify-center transition-colors"
+              aria-label="Close leaderboard"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="w-6 h-6 text-yellow-400" />
+              <h2 className="font-game text-base sm:text-lg tracking-wider">LEADERBOARD</h2>
+              <span className="ml-auto mr-8 text-[10px] uppercase tracking-wider opacity-70 flex items-center gap-1.5 font-game-body">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> LIVE
+              </span>
+            </div>
+            {leaderboard.length === 0 ? (
+              <p className="font-game-body text-lg opacity-70 text-center py-8">No scores yet. Be the first!</p>
+            ) : (
+              <ol className="space-y-2 font-game-body">
+                {leaderboard.map((row, i) => (
+                  <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
+                    style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
+                    <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate text-white">{row.username}</div>
+                      <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
+                    </div>
+                    <span className="font-mono font-bold text-right text-yellow-300">{row.score}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
-        {leaderboard.length === 0 ? (
-          <p className="text-base opacity-70">No scores yet. Be the first!</p>
-        ) : (
-          <ol className="space-y-1.5">
-            {leaderboard.map((row, i) => (
-              <li key={row.id} className="flex items-center gap-2 text-base rounded-lg px-2 py-1.5"
-                style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "transparent" }}>
-                <span className="font-bold w-5 text-center opacity-70">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{row.username}</div>
-                  <div className="text-[10px] opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                </div>
-                <span className="font-mono font-bold text-right">{row.score}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </aside>
+      )}
 
       {/* Mobile joystick */}
       {running && (
