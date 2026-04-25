@@ -1013,12 +1013,11 @@ function Index() {
             {/* TOP: Title above PulseChain logo + small tagline below */}
             <div className="flex flex-col items-center text-center pt-2 sm:pt-4">
               <h1
-                className="font-game text-shadow-game text-5xl sm:text-7xl md:text-8xl text-transparent bg-clip-text leading-[0.95] tracking-wider"
-                style={{ backgroundImage: "var(--gradient-flork)" }}
+                className="font-game text-shadow-game title-flork-bright text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-widest"
               >
                 FLORK HUNTER
               </h1>
-              <p className="font-game-body mt-2 text-xs sm:text-sm md:text-base text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] tracking-wide uppercase">
+              <p className="font-game-body mt-3 text-xs sm:text-sm md:text-base text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.25em] uppercase">
                 Hunt monsters · Collect coins · Survive 7 waves
               </p>
             </div>
