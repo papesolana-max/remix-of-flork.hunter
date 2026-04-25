@@ -993,7 +993,7 @@ function Index() {
         </button>
       )}
 
-      {/* Start overlay — full-page hero with content panel on the RIGHT so the artwork stays visible on the LEFT */}
+      {/* Start overlay — TOP: title + tagline (above PulseChain logo) · MIDDLE: artwork visible · BOTTOM: buttons + socials */}
       {!running && !gameOver && !won && (
         <div
           className="absolute inset-0 z-30 overflow-hidden"
@@ -1004,45 +1004,46 @@ function Index() {
             backgroundRepeat: "no-repeat",
           }}
         >
-          {/* Side scrim — keeps left side (artwork) bright, right side darkened for the content panel */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/40 to-black/85 hidden md:block" />
-          {/* Vertical scrim for mobile (artwork on top, panel on bottom) */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/40 to-black/90 md:hidden" />
+          {/* Top + bottom scrim — keeps middle (artwork) clear */}
+          <div className="absolute inset-x-0 top-0 h-1/3 bg-gradient-to-b from-black/85 via-black/55 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/65 to-transparent" />
 
-          {/* Content panel — right side on desktop, bottom on mobile */}
-          <div className="relative z-10 h-full w-full flex md:items-center md:justify-end items-end justify-center">
-            <div className="w-full md:w-[55%] lg:w-[48%] max-w-2xl flex flex-col items-center md:items-start px-5 sm:px-8 pb-6 md:pb-0 md:pr-10 lg:pr-16 max-h-full overflow-y-auto">
-              {/* Title with gradient + glow */}
-              <div
-                className="font-game text-shadow-game text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-3 text-transparent bg-clip-text leading-none text-center md:text-left"
+          {/* 3-row layout */}
+          <div className="relative z-10 h-full w-full flex flex-col justify-between py-5 sm:py-7 px-4">
+            {/* TOP: Title above PulseChain logo + small tagline below */}
+            <div className="flex flex-col items-center text-center pt-2 sm:pt-4">
+              <h1
+                className="font-game text-shadow-game text-5xl sm:text-7xl md:text-8xl text-transparent bg-clip-text leading-[0.95] tracking-wider"
                 style={{ backgroundImage: "var(--gradient-flork)" }}
               >
-                FLORK
-                <br />
-                HUNTER
-              </div>
-
-              <p className="font-game-body text-white/95 mb-5 text-xl sm:text-2xl md:text-2xl text-center md:text-left drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                Hunt monsters · Collect coins
-                <br className="hidden sm:block" /> Survive 7 waves
+                FLORK HUNTER
+              </h1>
+              <p className="font-game-body mt-2 text-xs sm:text-sm md:text-base text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] tracking-wide uppercase">
+                Hunt monsters · Collect coins · Survive 7 waves
               </p>
+            </div>
 
+            {/* MIDDLE: spacer so the artwork breathes */}
+            <div className="flex-1" />
+
+            {/* BOTTOM: controls hint, buttons, social icons */}
+            <div className="flex flex-col items-center gap-4 pb-2 sm:pb-4">
               {/* Controls hint */}
-              <div className="font-game-body text-white/85 text-base sm:text-lg mb-6 text-center md:text-left drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              <div className="font-game-body text-white/85 text-sm sm:text-base text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 <span className="hidden md:inline">
-                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
-                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">MOUSE</kbd>aim ·{" "}
-                  <kbd className="font-game text-[10px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">CLICK</kbd>shoot
+                  <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
+                  <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">MOUSE</kbd>aim ·{" "}
+                  <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">CLICK</kbd>shoot
                 </span>
                 <span className="md:hidden">Joystick to move · FIRE to shoot</span>
               </div>
 
               {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center mb-5 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                 <button
                   onClick={handleStart}
                   disabled={loading}
-                  className="relative overflow-hidden font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 flex items-center justify-center gap-2 min-w-[200px]"
+                  className="relative overflow-hidden font-game text-base sm:text-lg px-8 py-4 rounded-2xl text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 flex items-center justify-center gap-2 min-w-[220px] tracking-wider"
                   style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
                 >
                   {loading ? (
@@ -1055,7 +1056,7 @@ function Index() {
                     </>
                   ) : (
                     <>
-                      <Play className="w-4 h-4 fill-current" />
+                      <Play className="w-5 h-5 fill-current" />
                       <span>START HUNTING</span>
                     </>
                   )}
@@ -1063,21 +1064,21 @@ function Index() {
                 <button
                   onClick={() => setShowLB(true)}
                   disabled={loading}
-                  className="font-game text-xs sm:text-sm px-8 py-4 rounded-lg text-white bg-black/70 border-2 border-white/40 backdrop-blur-sm hover:bg-black/90 active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="font-game text-base sm:text-lg px-8 py-4 rounded-2xl text-white bg-black/70 border-2 border-white/40 backdrop-blur-sm hover:bg-black/90 active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 tracking-wider"
                 >
-                  <Trophy className="w-4 h-4 text-yellow-400" />
+                  <Trophy className="w-5 h-5 text-yellow-400" />
                   <span>LEADERBOARD</span>
                 </button>
               </div>
 
               {/* Social icons — real SVG icons, no emoji */}
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-3">
                 <a
                   href="https://pulsechainflork.fun"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Website"
-                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
                 >
                   <Globe className="w-5 h-5" />
                 </a>
@@ -1086,16 +1087,16 @@ function Index() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="X (Twitter)"
-                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
                 >
-                  <XIcon className="w-4 h-4" />
+                  <XIcon className="w-5 h-5" />
                 </a>
                 <a
                   href="https://t.me/Flork_PLS"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Telegram"
-                  className="w-11 h-11 rounded-lg bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 active:scale-95 transition-all flex items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-black/70 border-2 border-white/30 text-white hover:bg-black/90 hover:border-white/60 hover:scale-110 active:scale-95 transition-all flex items-center justify-center"
                 >
                   <Send className="w-5 h-5" />
                 </a>
