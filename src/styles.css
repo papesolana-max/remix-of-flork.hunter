@@ -6,9 +6,10 @@
 @custom-variant dark (&:is(.dark *));
 
 .font-game {
-  font-family: "Audiowide", "Black Ops One", "Russo One", system-ui, sans-serif;
-  letter-spacing: 0.08em;
-  font-weight: 400;
+  font-family: "Black Ops One", "Audiowide", "Russo One", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  font-weight: 900;
+  -webkit-text-stroke: 0;
 }
 .font-game-body {
   font-family: "Rajdhani", "Russo One", system-ui, sans-serif;
