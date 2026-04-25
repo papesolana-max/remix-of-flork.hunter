@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
-import mapForestImg from "@/assets/forest-map.jpg";
-import mapSwampImg from "@/assets/map-swamp.jpg";
-import mapRuinsImg from "@/assets/map-ruins.jpg";
+import mapForestTile from "@/assets/map-tile-forest.png";
+import mapSwampTile from "@/assets/map-tile-swamp.png";
+import mapRuinsTile from "@/assets/map-tile-ruins.png";
 import slimeImg from "@/assets/enemy-slime.png";
 import batImg from "@/assets/enemy-bat.png";
 import bossImg from "@/assets/enemy-boss.png";
@@ -43,8 +43,9 @@ const FLORK_SIZE = 64;
 const FLORK_SPEED = 2.6;
 const PROJ_SPEED = 6;
 const ENEMY_SPEED_BASE = 0.6;
+const MAP_TILE_SIZE = 1024;
 
-const MAPS = [mapForestImg, mapSwampImg, mapRuinsImg];
+const MAPS = [mapForestTile, mapSwampTile, mapRuinsTile];
 
 type EnemyType = "slime" | "bat" | "boss" | "ghost" | "wolf";
 type Vec = { x: number; y: number };
@@ -129,7 +130,6 @@ function Index() {
   const particlesRef = useRef<SVGGElement>(null);
   const slashesRef = useRef<SVGGElement>(null);
   const worldRef = useRef<SVGGElement>(null);
-  const bgRef = useRef<SVGImageElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Load leaderboard + realtime
