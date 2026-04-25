@@ -200,6 +200,29 @@ function Index() {
     setRunning(true);
   }, [musicOn]);
 
+  // Loading bar wrapper for the start button — gives a polished "loading" feel.
+  const handleStart = useCallback(() => {
+    if (loading) return;
+    unlockAudio();
+    setLoading(true);
+    setLoadingPct(0);
+    const startTs = performance.now();
+    const DURATION = 1100;
+    const tick = () => {
+      const elapsed = performance.now() - startTs;
+      const pct = Math.min(100, (elapsed / DURATION) * 100);
+      setLoadingPct(pct);
+      if (pct < 100) {
+        requestAnimationFrame(tick);
+      } else {
+        setLoading(false);
+        setLoadingPct(0);
+        start();
+      }
+    };
+    requestAnimationFrame(tick);
+  }, [loading, start]);
+
   // keyboard
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
