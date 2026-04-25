@@ -29,16 +29,35 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Flork Hunter — PulseChain Flork" },
+      {
+        name: "description",
+        content:
+          "Flork Hunter — A top-down hunting adventure built for the PulseChain Flork community. Hunt monsters, collect coins, climb the realtime leaderboard.",
+      },
+      { name: "author", content: "PulseChain Flork" },
+      { property: "og:title", content: "Flork Hunter — PulseChain Flork" },
+      {
+        property: "og:description",
+        content:
+          "Hunt monsters, collect coins, and climb the realtime Flork leaderboard.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { property: "og:image", content: "/og-image.png" },
+      { property: "og:url", content: "https://pulsechainflork.fun" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Flork Hunter — PulseChain Flork" },
+      {
+        name: "twitter:description",
+        content:
+          "Hunt monsters, collect coins, and climb the realtime Flork leaderboard.",
+      },
+      { name: "twitter:image", content: "/og-image.png" },
+      { name: "twitter:site", content: "@FlorkOGPLS" },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
       {
         rel: "stylesheet",
         href: appCss,

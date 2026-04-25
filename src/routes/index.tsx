@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
+import florkHeroImg from "@/assets/flork-hero.png";
 import mapForestTile from "@/assets/map-tile-forest.png";
 import mapSwampTile from "@/assets/map-tile-swamp.png";
 import mapRuinsTile from "@/assets/map-tile-ruins.png";
@@ -940,14 +941,20 @@ function Index() {
 
       {/* Start overlay */}
       {!running && !gameOver && !won && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 px-4">
-          <div className="text-4xl sm:text-5xl md:text-7xl font-black mb-3 text-transparent bg-clip-text text-center" style={{ backgroundImage: "var(--gradient-flork)" }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm z-30 px-4 overflow-y-auto py-6">
+          <img
+            src={florkHeroImg}
+            alt="PulseChain Flork crew"
+            className="w-full max-w-md md:max-w-lg mb-4 drop-shadow-[0_10px_40px_rgba(168,85,247,0.45)] select-none pointer-events-none"
+            draggable={false}
+          />
+          <div className="text-3xl sm:text-4xl md:text-6xl font-black mb-2 text-transparent bg-clip-text text-center" style={{ backgroundImage: "var(--gradient-flork)" }}>
             FLORK HUNTER
           </div>
-          <p className="text-white/80 mb-6 text-sm sm:text-base md:text-lg text-center max-w-lg">
+          <p className="text-white/80 mb-4 text-sm sm:text-base md:text-lg text-center max-w-lg">
             Explore mystical maps, hunt monsters, collect coins, and survive 7 waves to claim victory!
           </p>
-          <div className="text-white/60 text-xs sm:text-sm mb-6 text-center max-w-md">
+          <div className="text-white/60 text-xs sm:text-sm mb-5 text-center max-w-md">
             <span className="hidden md:inline">
               <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">WASD</kbd> move ·{" "}
               <kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20">Mouse</kbd> aim ·{" "}
@@ -955,13 +962,47 @@ function Index() {
             </span>
             <span className="md:hidden">Joystick to move · FIRE button to shoot</span>
           </div>
-          <button
-            onClick={start}
-            className="px-10 py-4 rounded-full font-bold text-white text-lg sm:text-xl hover:scale-105 transition-transform"
-            style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
-          >
-            START HUNTING
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 items-center mb-5">
+            <button
+              onClick={start}
+              className="px-10 py-4 rounded-full font-bold text-white text-lg sm:text-xl hover:scale-105 transition-transform"
+              style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+            >
+              START HUNTING
+            </button>
+            <button
+              onClick={() => setShowLB((v) => !v)}
+              className="px-8 py-4 rounded-full font-bold text-white text-base sm:text-lg bg-white/10 border-2 border-white/30 backdrop-blur-sm hover:bg-white/20 transition-colors"
+            >
+              🏆 {showLB ? "Hide" : "Leaderboard"}
+            </button>
+          </div>
+          <div className="flex items-center gap-3 text-white/80 text-sm">
+            <a
+              href="https://pulsechainflork.fun"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
+            >
+              🌐 Website
+            </a>
+            <a
+              href="https://x.com/FlorkOGPLS"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
+            >
+              𝕏 Twitter
+            </a>
+            <a
+              href="https://t.me/Flork_PLS"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 transition-colors"
+            >
+              ✈ Telegram
+            </a>
+          </div>
         </div>
       )}
 
