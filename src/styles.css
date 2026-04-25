@@ -1,8 +1,21 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap");
 
 @custom-variant dark (&:is(.dark *));
+
+.font-game {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  letter-spacing: 0.02em;
+}
+.font-game-body {
+  font-family: "VT323", "Courier New", monospace;
+  letter-spacing: 0.02em;
+}
+.text-shadow-game {
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), 0 0 12px rgba(168, 85, 247, 0.5);
+}
 
 /*
  * Design system definition.
