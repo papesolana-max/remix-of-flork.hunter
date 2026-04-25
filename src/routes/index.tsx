@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import florkImg from "@/assets/flork.png";
 import florkHeroImg from "@/assets/flork-hero.png";
 import florkTitleImg from "@/assets/flork-hunter-title.png";
+import btnStartImg from "@/assets/btn-start-hunting.png";
+import btnLeaderboardImg from "@/assets/btn-leaderboard.png";
 import mapForestTile from "@/assets/map-tile-forest.png";
 import mapSwampTile from "@/assets/map-tile-swamp.png";
 import mapRuinsTile from "@/assets/map-tile-ruins.png";
@@ -1009,9 +1011,9 @@ function Index() {
           <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/65 to-transparent" />
 
           {/* 3-row layout */}
-          <div className="relative z-10 h-full w-full flex flex-col justify-between py-5 sm:py-7 px-4">
-            {/* TOP: Title above PulseChain logo + small tagline below */}
-            <div className="flex flex-col items-center text-center pt-1 sm:pt-2">
+          <div className="relative z-10 h-full w-full flex flex-col justify-between py-2 sm:py-3 px-4">
+            {/* TOP: Title hugging the very top, tagline tight below */}
+            <div className="flex flex-col items-center text-center pt-0">
               <img
                 src={florkTitleImg}
                 alt="Flork Hunter"
@@ -1020,7 +1022,7 @@ function Index() {
                 className="w-full max-w-[420px] sm:max-w-[560px] md:max-w-[680px] h-auto select-none drop-shadow-[0_10px_35px_rgba(0,0,0,0.75)]"
                 draggable={false}
               />
-              <p className="font-game-body -mt-1 sm:mt-0 text-[11px] sm:text-xs md:text-sm text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
+              <p className="font-game-body -mt-3 sm:-mt-4 md:-mt-6 text-[11px] sm:text-xs md:text-sm text-white drop-shadow-[0_2px_6px_rgba(0,0,0,1)] tracking-[0.18em] uppercase">
                 Hunt monsters · Collect coins · Survive 7 waves
               </p>
             </div>
@@ -1040,36 +1042,44 @@ function Index() {
                 <span className="md:hidden">Joystick to move · FIRE to shoot</span>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              {/* Action buttons — 3D image buttons matching the title style */}
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
                 <button
                   onClick={handleStart}
                   disabled={loading}
-                  className="relative overflow-hidden font-game text-base sm:text-lg px-8 py-4 rounded-2xl text-white border-2 border-white/40 hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 flex items-center justify-center gap-2 min-w-[220px] tracking-wider"
-                  style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}
+                  aria-label="Start Hunting"
+                  className="relative group hover:scale-105 active:scale-95 transition-transform disabled:cursor-wait disabled:hover:scale-100 drop-shadow-[0_8px_18px_rgba(217,70,239,0.55)]"
                 >
-                  {loading ? (
-                    <>
-                      <span className="relative z-10">LOADING {Math.round(loadingPct)}%</span>
-                      <span
-                        className="absolute left-0 top-0 h-full bg-white/30 transition-[width] duration-100 ease-linear"
-                        style={{ width: `${loadingPct}%` }}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 fill-current" />
-                      <span>START HUNTING</span>
-                    </>
+                  <img
+                    src={btnStartImg}
+                    alt=""
+                    width={1024}
+                    height={512}
+                    loading="lazy"
+                    draggable={false}
+                    className="w-[240px] sm:w-[280px] h-auto select-none"
+                  />
+                  {loading && (
+                    <span className="absolute inset-0 flex items-center justify-center font-game text-white text-base sm:text-lg tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      LOADING {Math.round(loadingPct)}%
+                    </span>
                   )}
                 </button>
                 <button
                   onClick={() => setShowLB(true)}
                   disabled={loading}
-                  className="font-game text-base sm:text-lg px-8 py-4 rounded-2xl text-white bg-black/70 border-2 border-white/40 backdrop-blur-sm hover:bg-black/90 active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 tracking-wider"
+                  aria-label="Leaderboard"
+                  className="relative hover:scale-105 active:scale-95 transition-transform disabled:opacity-50 drop-shadow-[0_8px_18px_rgba(34,211,238,0.45)]"
                 >
-                  <Trophy className="w-5 h-5 text-yellow-400" />
-                  <span>LEADERBOARD</span>
+                  <img
+                    src={btnLeaderboardImg}
+                    alt=""
+                    width={1024}
+                    height={512}
+                    loading="lazy"
+                    draggable={false}
+                    className="w-[240px] sm:w-[280px] h-auto select-none"
+                  />
                 </button>
               </div>
 
