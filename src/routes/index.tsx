@@ -216,11 +216,11 @@ function Index() {
       mouse: { x: cx + 80, y: cy },
       enemies: [], projectiles: [], loot: [], particles: [], slashes: [],
       trees: filtered,
-      hp: 5, iframes: 0, gold: 0, kills: 0,
+      hp: 5 + bonusRef.current.extraLives, iframes: 0, gold: 0, kills: 0,
       wave: 1, waveSpawned: 0, waveTarget: 5, waveCooldown: 60,
       fireCooldown: 0, running: true, tick: 0, walkPhase: 0, shake: 0,
     };
-    setHud({ hp: 5, gold: 0, wave: 1, kills: 0 });
+    setHud({ hp: 5 + bonusRef.current.extraLives, gold: 0, wave: 1, kills: 0 });
     setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
     setRunning(true);
   }, [musicOn]);
