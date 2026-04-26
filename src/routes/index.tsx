@@ -23,7 +23,11 @@ import {
   setMusicEnabled,
   setSfxEnabled,
 } from "@/lib/audio";
-import { Globe, Send, Trophy, Play, X } from "lucide-react";
+import { Globe, Send, Trophy, X, Sparkles } from "lucide-react";
+import { useAccount } from "wagmi";
+import { WalletConnect } from "@/components/WalletConnect";
+import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterSelect";
+import { RARITY_BONUS, RARITY_COLORS, type Rarity } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
 function XIcon({ className }: { className?: string }) {
@@ -78,6 +82,7 @@ type SlashFx = { x: number; y: number; life: number };
 type LBRow = {
   id: string; username: string; wallet: string;
   score: number; wave: number; kills: number; created_at: string;
+  nft_token_id: number | null; nft_rarity: Rarity | null;
 };
 
 const ENEMY_SPRITES: Record<EnemyType, string> = {
