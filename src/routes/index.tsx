@@ -978,17 +978,34 @@ function Index() {
               <p className="font-game-body text-lg opacity-70 text-center py-8">No scores yet. Be the first!</p>
             ) : (
               <ol className="space-y-2 font-game-body">
-                {leaderboard.map((row, i) => (
-                  <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
-                    style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
-                    <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate text-white">{row.username}</div>
-                      <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                    </div>
-                    <span className="font-mono font-bold text-right text-yellow-300">{row.score}</span>
-                  </li>
-                ))}
+                {leaderboard.map((row, i) => {
+                  const r = row.nft_rarity as Rarity | null;
+                  const c = r ? RARITY_COLORS[r] : null;
+                  return (
+                    <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
+                      style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
+                      <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold truncate text-white">{row.username}</span>
+                          {r && c && (
+                            <span
+                              title={`Flork #${row.nft_token_id} · ${r}`}
+                              className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${c.text} ${c.bg} ${c.ring.replace("ring-", "border-")}`}
+                            >
+                              {r === "Legendary" ? "★ " : ""}{r}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-yellow-300 text-base leading-tight">{row.score}</div>
+                        <div className="text-[10px] opacity-60 leading-tight">W{row.wave} · {row.kills}k</div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>
