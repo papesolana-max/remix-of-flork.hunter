@@ -1061,7 +1061,12 @@ function Index() {
 
           {/* Fixed overlay zones: top stays above PulseChain logo, bottom stays below the character art */}
           <div className="relative z-10 h-full w-full px-4">
-            <div className="absolute inset-x-0 top-3 sm:top-5 md:top-7 flex flex-col items-center text-center">
+            {/* Wallet connect — top right */}
+            <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-20">
+              <WalletConnect />
+            </div>
+
+            <div className="absolute inset-x-0 top-3 sm:top-5 md:top-7 flex flex-col items-center text-center pointer-events-none">
               <img
                 src={florkTitleImg}
                 alt="Flork Hunter"
@@ -1075,8 +1080,15 @@ function Index() {
               </p>
             </div>
 
-            <div className="absolute inset-x-0 bottom-5 sm:bottom-7 md:bottom-8 flex flex-col items-center gap-4">
-              <div className="font-game-body text-white/85 text-sm sm:text-base text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <div className="absolute inset-x-0 bottom-5 sm:bottom-7 md:bottom-8 flex flex-col items-center gap-3">
+              {/* Selected Flork status */}
+              <SelectedFlorkPill
+                selected={selectedChar}
+                connected={onPulseChain}
+                onOpen={() => setShowCharSelect(true)}
+              />
+
+              <div className="font-game-body text-white/85 text-xs sm:text-sm text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 <span className="hidden md:inline">
                   <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
                   <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">MOUSE</kbd>aim ·{" "}
