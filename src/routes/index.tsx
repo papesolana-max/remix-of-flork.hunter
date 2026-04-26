@@ -178,7 +178,7 @@ function Index() {
         .from("leaderboard")
         .select("*")
         .order("score", { ascending: false })
-        .limit(20);
+        .limit(100);
       if (active && data) setLeaderboard(data as LBRow[]);
     };
     load();
