@@ -561,7 +561,7 @@ function Index() {
         const dx2 = s.pos.x - l.x, dy2 = s.pos.y - l.y;
         if (dx2 * dx2 + dy2 * dy2 < 36 * 36) {
           if (l.type === "coin") { s.gold += 5; burst(s, l.x, l.y, "#fde047", 6); sfx.coin(); }
-          else { s.hp = Math.min(5, s.hp + 1); burst(s, l.x, l.y, "#f87171", 8); sfx.heart(); }
+          else { s.hp = Math.min(5 + bonusRef.current.extraLives, s.hp + 1); burst(s, l.x, l.y, "#f87171", 8); sfx.heart(); }
           (l as Loot & { taken?: boolean }).taken = true;
         }
       }
@@ -913,7 +913,7 @@ function Index() {
           <div className="flex flex-col gap-2 pointer-events-auto">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
               <div className="flex items-center gap-0.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-                {Array.from({ length: 5 }).map((_, i) => (
+                {Array.from({ length: 5 + bonus.extraLives }).map((_, i) => (
                   <span key={i} className="text-base sm:text-lg" style={{ filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)" }}>❤️</span>
                 ))}
               </div>
