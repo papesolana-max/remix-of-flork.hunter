@@ -782,8 +782,17 @@ function Index() {
     if (username.length < 1 || username.length > 32) { setSubmitError("Username must be 1–32 characters."); return; }
     if (wallet.length < 4 || wallet.length > 128) { setSubmitError("Wallet must be 4–128 characters."); return; }
     setSubmitting(true);
+    const nft_token_id = selectedChar.kind === "nft" ? selectedChar.tokenId : null;
+    const nft_rarity = selectedChar.kind === "nft" ? selectedChar.rarity : null;
     const { error } = await supabase.from("leaderboard").insert({
-      username, wallet, score: finalScore, wave: hud.wave, kills: hud.kills, gold: hud.gold,
+      username,
+      wallet: wallet.toLowerCase(),
+      score: finalScore,
+      wave: hud.wave,
+      kills: hud.kills,
+      gold: hud.gold,
+      nft_token_id,
+      nft_rarity,
     });
     setSubmitting(false);
     if (error) { setSubmitError(error.message); return; }
