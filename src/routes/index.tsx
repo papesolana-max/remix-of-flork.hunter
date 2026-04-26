@@ -118,6 +118,23 @@ function Index() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ username: "", wallet: "" });
 
+  // ===== Web3 / NFT integration =====
+  const { address: walletAddress, isConnected, chainId } = useAccount();
+  const onPulseChain = isConnected && chainId === 369;
+  const [showCharSelect, setShowCharSelect] = useState(false);
+  const [selectedChar, setSelectedChar] = useState<SelectedCharacter>({ kind: "guest" });
+  const bonus = selectedChar.kind === "nft" ? RARITY_BONUS[selectedChar.rarity] : RARITY_BONUS.Common;
+  // Keep a ref so the running game loop reads the latest bonuses without restarting.
+  const bonusRef = useRef(bonus);
+  useEffect(() => { bonusRef.current = bonus; }, [bonus]);
+
+  // Auto-fill wallet field on game-over when connected
+  useEffect(() => {
+    if (walletAddress) {
+      setForm((f) => (f.wallet ? f : { ...f, wallet: walletAddress }));
+    }
+  }, [walletAddress]);
+
   // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
   // (otherwise new trees from a fresh game don't repaint).
   const [trees, setTrees] = useState<Tree[]>([]);
