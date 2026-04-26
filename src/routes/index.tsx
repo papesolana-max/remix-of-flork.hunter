@@ -23,7 +23,11 @@ import {
   setMusicEnabled,
   setSfxEnabled,
 } from "@/lib/audio";
-import { Globe, Send, Trophy, Play, X } from "lucide-react";
+import { Globe, Send, Trophy, X, Sparkles } from "lucide-react";
+import { useAccount } from "wagmi";
+import { WalletConnect } from "@/components/WalletConnect";
+import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterSelect";
+import { RARITY_BONUS, RARITY_COLORS, type Rarity } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
 function XIcon({ className }: { className?: string }) {
@@ -78,6 +82,7 @@ type SlashFx = { x: number; y: number; life: number };
 type LBRow = {
   id: string; username: string; wallet: string;
   score: number; wave: number; kills: number; created_at: string;
+  nft_token_id: number | null; nft_rarity: Rarity | null;
 };
 
 const ENEMY_SPRITES: Record<EnemyType, string> = {
@@ -87,6 +92,46 @@ const ENEMY_SPRITES: Record<EnemyType, string> = {
 function shortWallet(w: string) {
   if (w.length <= 10) return w;
   return `${w.slice(0, 5)}…${w.slice(-4)}`;
+}
+
+function SelectedFlorkPill({
+  selected,
+  connected,
+  onOpen,
+}: {
+  selected: SelectedCharacter;
+  connected: boolean;
+  onOpen: () => void;
+}) {
+  if (selected.kind === "nft") {
+    const c = RARITY_COLORS[selected.rarity];
+    return (
+      <button
+        onClick={onOpen}
+        className={`pointer-events-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 ${c.bg} ${c.text} ${c.glow} backdrop-blur-sm hover:scale-105 transition-transform`}
+        style={{ borderColor: "rgba(255,255,255,0.35)" }}
+      >
+        {selected.image && (
+          <img src={selected.image} alt="" className="w-6 h-6 rounded-full object-cover ring-1 ring-white/40" />
+        )}
+        <span className="text-xs font-game-body uppercase tracking-wider">
+          {selected.rarity === "Legendary" ? "★ " : ""}Flork #{selected.tokenId} · {selected.rarity}
+        </span>
+        <Sparkles className="w-3.5 h-3.5 opacity-80" />
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={onOpen}
+      disabled={!connected}
+      className="pointer-events-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-full border-2 border-white/30 bg-black/55 text-white text-xs font-game-body uppercase tracking-wider backdrop-blur-sm hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+      title={connected ? "Pick a Flork NFT" : "Connect wallet to pick an NFT"}
+    >
+      <Sparkles className="w-3.5 h-3.5" />
+      {connected ? "Choose Flork NFT" : "Guest Flork (no NFT)"}
+    </button>
+  );
 }
 
 function Index() {
@@ -112,6 +157,23 @@ function Index() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState({ username: "", wallet: "" });
+
+  // ===== Web3 / NFT integration =====
+  const { address: walletAddress, isConnected, chainId } = useAccount();
+  const onPulseChain = isConnected && chainId === 369;
+  const [showCharSelect, setShowCharSelect] = useState(false);
+  const [selectedChar, setSelectedChar] = useState<SelectedCharacter>({ kind: "guest" });
+  const bonus = selectedChar.kind === "nft" ? RARITY_BONUS[selectedChar.rarity] : RARITY_BONUS.Common;
+  // Keep a ref so the running game loop reads the latest bonuses without restarting.
+  const bonusRef = useRef(bonus);
+  useEffect(() => { bonusRef.current = bonus; }, [bonus]);
+
+  // Auto-fill wallet field on game-over when connected
+  useEffect(() => {
+    if (walletAddress) {
+      setForm((f) => (f.wallet ? f : { ...f, wallet: walletAddress }));
+    }
+  }, [walletAddress]);
 
   // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
   // (otherwise new trees from a fresh game don't repaint).
@@ -156,7 +218,7 @@ function Index() {
         .from("leaderboard")
         .select("*")
         .order("score", { ascending: false })
-        .limit(20);
+        .limit(100);
       if (active && data) setLeaderboard(data as LBRow[]);
     };
     load();
@@ -194,11 +256,11 @@ function Index() {
       mouse: { x: cx + 80, y: cy },
       enemies: [], projectiles: [], loot: [], particles: [], slashes: [],
       trees: filtered,
-      hp: 5, iframes: 0, gold: 0, kills: 0,
+      hp: 5 + bonusRef.current.extraLives, iframes: 0, gold: 0, kills: 0,
       wave: 1, waveSpawned: 0, waveTarget: 5, waveCooldown: 60,
       fireCooldown: 0, running: true, tick: 0, walkPhase: 0, shake: 0,
     };
-    setHud({ hp: 5, gold: 0, wave: 1, kills: 0 });
+    setHud({ hp: 5 + bonusRef.current.extraLives, gold: 0, wave: 1, kills: 0 });
     setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
     setRunning(true);
   }, [musicOn]);
@@ -256,7 +318,7 @@ function Index() {
       vy: (dy / len) * PROJ_SPEED,
       life: 110,
     });
-    s.fireCooldown = 20;
+    s.fireCooldown = Math.max(4, Math.round(20 / bonusRef.current.fireRate));
     sfx.shoot();
   }, []);
 
@@ -425,8 +487,9 @@ function Index() {
       const mag = Math.hypot(dx, dy);
       const moving = mag > 0.001;
       if (moving) {
-        const nx = s.pos.x + dx * FLORK_SPEED;
-        const ny = s.pos.y + dy * FLORK_SPEED;
+        const sp = FLORK_SPEED * bonusRef.current.speed;
+        const nx = s.pos.x + dx * sp;
+        const ny = s.pos.y + dy * sp;
         if (nx > 30 && nx < WORLD_W - 30 && !collidesTree(nx, s.pos.y, FLORK_SIZE / 2 - 14)) s.pos.x = nx;
         if (ny > 30 && ny < WORLD_H - 30 && !collidesTree(s.pos.x, ny, FLORK_SIZE / 2 - 14)) s.pos.y = ny;
         s.walkPhase += 0.28;
@@ -489,7 +552,7 @@ function Index() {
         for (const e of s.enemies) {
           const dx2 = p.x - e.x, dy2 = p.y - e.y;
           if (dx2 * dx2 + dy2 * dy2 < e.r * e.r) {
-            e.hp--; e.hitFlash = 6; p.life = 0;
+            e.hp -= bonusRef.current.damage; e.hitFlash = 6; p.life = 0;
             burst(s, p.x, p.y, "#ffd166", 5);
             sfx.hit();
             if (e.hp <= 0) {
@@ -538,7 +601,7 @@ function Index() {
         const dx2 = s.pos.x - l.x, dy2 = s.pos.y - l.y;
         if (dx2 * dx2 + dy2 * dy2 < 36 * 36) {
           if (l.type === "coin") { s.gold += 5; burst(s, l.x, l.y, "#fde047", 6); sfx.coin(); }
-          else { s.hp = Math.min(5, s.hp + 1); burst(s, l.x, l.y, "#f87171", 8); sfx.heart(); }
+          else { s.hp = Math.min(5 + bonusRef.current.extraLives, s.hp + 1); burst(s, l.x, l.y, "#f87171", 8); sfx.heart(); }
           (l as Loot & { taken?: boolean }).taken = true;
         }
       }
@@ -759,8 +822,17 @@ function Index() {
     if (username.length < 1 || username.length > 32) { setSubmitError("Username must be 1–32 characters."); return; }
     if (wallet.length < 4 || wallet.length > 128) { setSubmitError("Wallet must be 4–128 characters."); return; }
     setSubmitting(true);
+    const nft_token_id = selectedChar.kind === "nft" ? selectedChar.tokenId : null;
+    const nft_rarity = selectedChar.kind === "nft" ? selectedChar.rarity : null;
     const { error } = await supabase.from("leaderboard").insert({
-      username, wallet, score: finalScore, wave: hud.wave, kills: hud.kills, gold: hud.gold,
+      username,
+      wallet: wallet.toLowerCase(),
+      score: finalScore,
+      wave: hud.wave,
+      kills: hud.kills,
+      gold: hud.gold,
+      nft_token_id,
+      nft_rarity,
     });
     setSubmitting(false);
     if (error) { setSubmitError(error.message); return; }
@@ -890,7 +962,7 @@ function Index() {
           <div className="flex flex-col gap-2 pointer-events-auto">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
               <div className="flex items-center gap-0.5 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
-                {Array.from({ length: 5 }).map((_, i) => (
+                {Array.from({ length: 5 + bonus.extraLives }).map((_, i) => (
                   <span key={i} className="text-base sm:text-lg" style={{ filter: i < hud.hp ? "none" : "grayscale(1) opacity(0.3)" }}>❤️</span>
                 ))}
               </div>
@@ -946,17 +1018,34 @@ function Index() {
               <p className="font-game-body text-lg opacity-70 text-center py-8">No scores yet. Be the first!</p>
             ) : (
               <ol className="space-y-2 font-game-body">
-                {leaderboard.map((row, i) => (
-                  <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
-                    style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
-                    <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold truncate text-white">{row.username}</div>
-                      <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                    </div>
-                    <span className="font-mono font-bold text-right text-yellow-300">{row.score}</span>
-                  </li>
-                ))}
+                {leaderboard.map((row, i) => {
+                  const r = row.nft_rarity as Rarity | null;
+                  const c = r ? RARITY_COLORS[r] : null;
+                  return (
+                    <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
+                      style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
+                      <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-semibold truncate text-white">{row.username}</span>
+                          {r && c && (
+                            <span
+                              title={`Flork #${row.nft_token_id} · ${r}`}
+                              className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${c.text} ${c.bg} ${c.ring.replace("ring-", "border-")}`}
+                            >
+                              {r === "Legendary" ? "★ " : ""}{r}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-yellow-300 text-base leading-tight">{row.score}</div>
+                        <div className="text-[10px] opacity-60 leading-tight">W{row.wave} · {row.kills}k</div>
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>
@@ -1012,7 +1101,12 @@ function Index() {
 
           {/* Fixed overlay zones: top stays above PulseChain logo, bottom stays below the character art */}
           <div className="relative z-10 h-full w-full px-4">
-            <div className="absolute inset-x-0 top-3 sm:top-5 md:top-7 flex flex-col items-center text-center">
+            {/* Wallet connect — top right */}
+            <div className="absolute top-3 right-3 sm:top-5 sm:right-5 z-20">
+              <WalletConnect />
+            </div>
+
+            <div className="absolute inset-x-0 top-3 sm:top-5 md:top-7 flex flex-col items-center text-center pointer-events-none">
               <img
                 src={florkTitleImg}
                 alt="Flork Hunter"
@@ -1026,8 +1120,15 @@ function Index() {
               </p>
             </div>
 
-            <div className="absolute inset-x-0 bottom-5 sm:bottom-7 md:bottom-8 flex flex-col items-center gap-4">
-              <div className="font-game-body text-white/85 text-sm sm:text-base text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <div className="absolute inset-x-0 bottom-5 sm:bottom-7 md:bottom-8 flex flex-col items-center gap-3">
+              {/* Selected Flork status */}
+              <SelectedFlorkPill
+                selected={selectedChar}
+                connected={onPulseChain}
+                onOpen={() => setShowCharSelect(true)}
+              />
+
+              <div className="font-game-body text-white/85 text-xs sm:text-sm text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                 <span className="hidden md:inline">
                   <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">WASD</kbd>move ·{" "}
                   <kbd className="font-game-body text-[11px] px-2 py-1 rounded bg-white/15 border border-white/30 mr-1">MOUSE</kbd>aim ·{" "}
@@ -1110,7 +1211,17 @@ function Index() {
         </div>
       )}
 
-      {/* Game over / win overlay */}
+      {/* Character / NFT selection modal */}
+      <CharacterSelect
+        open={showCharSelect}
+        onClose={() => setShowCharSelect(false)}
+        onSelect={(s) => {
+          setSelectedChar(s);
+          setShowCharSelect(false);
+        }}
+      />
+
+
       {(gameOver || won) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm overflow-y-auto p-4 z-30">
           <div className={`text-4xl sm:text-5xl md:text-6xl font-black mb-2 ${won ? "text-transparent bg-clip-text" : "text-white"}`}

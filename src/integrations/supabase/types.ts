@@ -20,6 +20,8 @@ export type Database = {
           gold: number
           id: string
           kills: number
+          nft_rarity: string | null
+          nft_token_id: number | null
           score: number
           username: string
           wallet: string
@@ -30,6 +32,8 @@ export type Database = {
           gold?: number
           id?: string
           kills?: number
+          nft_rarity?: string | null
+          nft_token_id?: number | null
           score?: number
           username: string
           wallet: string
@@ -40,6 +44,8 @@ export type Database = {
           gold?: number
           id?: string
           kills?: number
+          nft_rarity?: string | null
+          nft_token_id?: number | null
           score?: number
           username?: string
           wallet?: string
