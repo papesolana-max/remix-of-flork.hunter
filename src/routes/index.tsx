@@ -278,7 +278,7 @@ function Index() {
       vy: (dy / len) * PROJ_SPEED,
       life: 110,
     });
-    s.fireCooldown = 20;
+    s.fireCooldown = Math.max(4, Math.round(20 / bonusRef.current.fireRate));
     sfx.shoot();
   }, []);
 
@@ -447,8 +447,9 @@ function Index() {
       const mag = Math.hypot(dx, dy);
       const moving = mag > 0.001;
       if (moving) {
-        const nx = s.pos.x + dx * FLORK_SPEED;
-        const ny = s.pos.y + dy * FLORK_SPEED;
+        const sp = FLORK_SPEED * bonusRef.current.speed;
+        const nx = s.pos.x + dx * sp;
+        const ny = s.pos.y + dy * sp;
         if (nx > 30 && nx < WORLD_W - 30 && !collidesTree(nx, s.pos.y, FLORK_SIZE / 2 - 14)) s.pos.x = nx;
         if (ny > 30 && ny < WORLD_H - 30 && !collidesTree(s.pos.x, ny, FLORK_SIZE / 2 - 14)) s.pos.y = ny;
         s.walkPhase += 0.28;
@@ -511,7 +512,7 @@ function Index() {
         for (const e of s.enemies) {
           const dx2 = p.x - e.x, dy2 = p.y - e.y;
           if (dx2 * dx2 + dy2 * dy2 < e.r * e.r) {
-            e.hp--; e.hitFlash = 6; p.life = 0;
+            e.hp -= bonusRef.current.damage; e.hitFlash = 6; p.life = 0;
             burst(s, p.x, p.y, "#ffd166", 5);
             sfx.hit();
             if (e.hp <= 0) {
