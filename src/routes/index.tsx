@@ -1171,7 +1171,17 @@ function Index() {
         </div>
       )}
 
-      {/* Game over / win overlay */}
+      {/* Character / NFT selection modal */}
+      <CharacterSelect
+        open={showCharSelect}
+        onClose={() => setShowCharSelect(false)}
+        onSelect={(s) => {
+          setSelectedChar(s);
+          setShowCharSelect(false);
+        }}
+      />
+
+
       {(gameOver || won) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-sm overflow-y-auto p-4 z-30">
           <div className={`text-4xl sm:text-5xl md:text-6xl font-black mb-2 ${won ? "text-transparent bg-clip-text" : "text-white"}`}
