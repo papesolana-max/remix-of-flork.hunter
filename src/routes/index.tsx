@@ -112,14 +112,9 @@ function Index() {
     const v = Number(localStorage.getItem("flork-hunter-best") || 0);
     if (!Number.isNaN(v)) setBest(v);
   }, []);
-  const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [form, setForm] = useState({ username: "", wallet: "" });
 
   // ===== Web3 / NFT integration =====
   const { address: walletAddress, isConnected, chainId } = useAccount();
@@ -131,8 +126,7 @@ function Index() {
   const bonusRef = useRef(bonus);
   useEffect(() => { bonusRef.current = bonus; }, [bonus]);
 
-  // Auto-fill wallet field on game-over when connected
-  useEffect(() => {
+
     if (walletAddress) {
       setForm((f) => (f.wallet ? f : { ...f, wallet: walletAddress }));
     }
