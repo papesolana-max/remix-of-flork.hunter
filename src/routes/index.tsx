@@ -162,24 +162,8 @@ function Index() {
   const worldRef = useRef<SVGGElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Load leaderboard + realtime
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from("leaderboard")
-        .select("*")
-        .order("score", { ascending: false })
-        .limit(100);
-      if (active && data) setLeaderboard(data as LBRow[]);
-    };
-    load();
-    const channel = supabase
-      .channel("leaderboard-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leaderboard" }, () => load())
-      .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
-  }, []);
+  // Leaderboard is now read on-chain inside <OnChainLeaderboard />.
+
 
   const start = useCallback(() => {
     unlockAudio();
@@ -213,7 +197,7 @@ function Index() {
       fireCooldown: 0, running: true, tick: 0, walkPhase: 0, shake: 0,
     };
     setHud({ hp: 5 + bonusRef.current.extraLives, gold: 0, wave: 1, kills: 0 });
-    setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
+    setGameOver(false); setWon(false);
     setRunning(true);
   }, [musicOn]);
 
@@ -766,30 +750,8 @@ function Index() {
 
   const finalScore = hud.gold + hud.kills * 10;
 
-  const submitScore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitError(null);
-    const username = form.username.trim();
-    const wallet = form.wallet.trim();
-    if (username.length < 1 || username.length > 32) { setSubmitError("Username must be 1–32 characters."); return; }
-    if (wallet.length < 4 || wallet.length > 128) { setSubmitError("Wallet must be 4–128 characters."); return; }
-    setSubmitting(true);
-    const nft_token_id = selectedChar.kind === "nft" ? selectedChar.tokenId : null;
-    const nft_rarity = selectedChar.kind === "nft" ? selectedChar.rarity : null;
-    const { error } = await supabase.from("leaderboard").insert({
-      username,
-      wallet: wallet.toLowerCase(),
-      score: finalScore,
-      wave: hud.wave,
-      kills: hud.kills,
-      gold: hud.gold,
-      nft_token_id,
-      nft_rarity,
-    });
-    setSubmitting(false);
-    if (error) { setSubmitError(error.message); return; }
-    setSubmitted(true);
-  };
+  // Score submission is handled on-chain by <OnChainSubmit /> on the Game Over panel.
+
 
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden select-none touch-none" style={{ background: "var(--gradient-sky)" }}>
