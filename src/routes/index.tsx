@@ -30,7 +30,7 @@ import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterS
 import { SelectedFlorkPill } from "@/components/SelectedFlorkPill";
 import { OnChainSubmit } from "@/components/OnChainSubmit";
 import { OnChainLeaderboard } from "@/components/OnChainLeaderboard";
-import { RARITY_BONUS, type Rarity } from "@/lib/web3/nft";
+import { RARITY_BONUS } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
 function XIcon({ className }: { className?: string }) {

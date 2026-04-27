@@ -122,7 +122,7 @@ export function OnChainLeaderboard() {
                   <div className="text-[10px] opacity-70 leading-tight">
                     W{row.waveReached.toString()} · {row.kills.toString()}k
                   </div>
-                  {row.reward > 0n && (
+                  {row.reward > BigInt(0) && (
                     <div className="text-[10px] text-yellow-200/90 leading-tight font-semibold">
                       +{formatPflork(row.reward)} pFLORK
                     </div>
