@@ -27,6 +27,7 @@ import { Globe, Send, Trophy, X, Sparkles } from "lucide-react";
 import { useAccount } from "wagmi";
 import { WalletConnect } from "@/components/WalletConnect";
 import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterSelect";
+import { SelectedFlorkPill } from "@/components/SelectedFlorkPill";
 import { RARITY_BONUS, RARITY_COLORS, type Rarity } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
