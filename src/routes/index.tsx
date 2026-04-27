@@ -14,7 +14,7 @@ import bossImg from "@/assets/enemy-boss.png";
 import ghostImg from "@/assets/enemy-ghost.png";
 import wolfImg from "@/assets/enemy-wolf.png";
 import treeImg from "@/assets/tree.png";
-import { supabase } from "@/integrations/supabase/client";
+// Score submission and leaderboard are now on-chain (FlorkGame contract). No Supabase imports needed.
 import {
   sfx,
   startMusic,
@@ -82,11 +82,7 @@ type Loot = { x: number; y: number; type: "coin" | "heart"; bob: number };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string };
 type Tree = { x: number; y: number; r: number };
 type SlashFx = { x: number; y: number; life: number };
-type LBRow = {
-  id: string; username: string; wallet: string;
-  score: number; wave: number; kills: number; created_at: string;
-  nft_token_id: number | null; nft_rarity: Rarity | null;
-};
+// Leaderboard rows are read directly from the FlorkGame contract — no local DB row type needed.
 
 const ENEMY_SPRITES: Record<EnemyType, string> = {
   slime: slimeImg, bat: batImg, boss: bossImg, ghost: ghostImg, wolf: wolfImg,
