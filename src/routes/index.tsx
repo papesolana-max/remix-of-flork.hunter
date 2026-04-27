@@ -28,7 +28,9 @@ import { useAccount } from "wagmi";
 import { WalletConnect } from "@/components/WalletConnect";
 import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterSelect";
 import { SelectedFlorkPill } from "@/components/SelectedFlorkPill";
-import { RARITY_BONUS, RARITY_COLORS, type Rarity } from "@/lib/web3/nft";
+import { OnChainSubmit } from "@/components/OnChainSubmit";
+import { OnChainLeaderboard } from "@/components/OnChainLeaderboard";
+import { RARITY_BONUS, type Rarity } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
 function XIcon({ className }: { className?: string }) {
