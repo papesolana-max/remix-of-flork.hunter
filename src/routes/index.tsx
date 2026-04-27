@@ -14,7 +14,7 @@ import bossImg from "@/assets/enemy-boss.png";
 import ghostImg from "@/assets/enemy-ghost.png";
 import wolfImg from "@/assets/enemy-wolf.png";
 import treeImg from "@/assets/tree.png";
-import { supabase } from "@/integrations/supabase/client";
+// Score submission and leaderboard are now on-chain (FlorkGame contract). No Supabase imports needed.
 import {
   sfx,
   startMusic,
@@ -28,7 +28,9 @@ import { useAccount } from "wagmi";
 import { WalletConnect } from "@/components/WalletConnect";
 import { CharacterSelect, type SelectedCharacter } from "@/components/CharacterSelect";
 import { SelectedFlorkPill } from "@/components/SelectedFlorkPill";
-import { RARITY_BONUS, RARITY_COLORS, type Rarity } from "@/lib/web3/nft";
+import { OnChainSubmit } from "@/components/OnChainSubmit";
+import { OnChainLeaderboard } from "@/components/OnChainLeaderboard";
+import { RARITY_BONUS, type Rarity } from "@/lib/web3/nft";
 
 // Inline X (Twitter) logo — lucide doesn't ship a brand icon for it.
 function XIcon({ className }: { className?: string }) {
@@ -80,11 +82,7 @@ type Loot = { x: number; y: number; type: "coin" | "heart"; bob: number };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; color: string };
 type Tree = { x: number; y: number; r: number };
 type SlashFx = { x: number; y: number; life: number };
-type LBRow = {
-  id: string; username: string; wallet: string;
-  score: number; wave: number; kills: number; created_at: string;
-  nft_token_id: number | null; nft_rarity: Rarity | null;
-};
+// Leaderboard rows are read directly from the FlorkGame contract — no local DB row type needed.
 
 const ENEMY_SPRITES: Record<EnemyType, string> = {
   slime: slimeImg, bat: batImg, boss: bossImg, ghost: ghostImg, wolf: wolfImg,
@@ -110,14 +108,9 @@ function Index() {
     const v = Number(localStorage.getItem("flork-hunter-best") || 0);
     if (!Number.isNaN(v)) setBest(v);
   }, []);
-  const [leaderboard, setLeaderboard] = useState<LBRow[]>([]);
   const [showLB, setShowLB] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPct, setLoadingPct] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [form, setForm] = useState({ username: "", wallet: "" });
 
   // ===== Web3 / NFT integration =====
   const { address: walletAddress, isConnected, chainId } = useAccount();
@@ -129,12 +122,6 @@ function Index() {
   const bonusRef = useRef(bonus);
   useEffect(() => { bonusRef.current = bonus; }, [bonus]);
 
-  // Auto-fill wallet field on game-over when connected
-  useEffect(() => {
-    if (walletAddress) {
-      setForm((f) => (f.wallet ? f : { ...f, wallet: walletAddress }));
-    }
-  }, [walletAddress]);
 
   // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
   // (otherwise new trees from a fresh game don't repaint).
@@ -171,24 +158,8 @@ function Index() {
   const worldRef = useRef<SVGGElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Load leaderboard + realtime
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from("leaderboard")
-        .select("*")
-        .order("score", { ascending: false })
-        .limit(100);
-      if (active && data) setLeaderboard(data as LBRow[]);
-    };
-    load();
-    const channel = supabase
-      .channel("leaderboard-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "leaderboard" }, () => load())
-      .subscribe();
-    return () => { active = false; supabase.removeChannel(channel); };
-  }, []);
+  // Leaderboard is now read on-chain inside <OnChainLeaderboard />.
+
 
   const start = useCallback(() => {
     unlockAudio();
@@ -222,7 +193,7 @@ function Index() {
       fireCooldown: 0, running: true, tick: 0, walkPhase: 0, shake: 0,
     };
     setHud({ hp: 5 + bonusRef.current.extraLives, gold: 0, wave: 1, kills: 0 });
-    setGameOver(false); setWon(false); setSubmitted(false); setSubmitError(null);
+    setGameOver(false); setWon(false);
     setRunning(true);
   }, [musicOn]);
 
@@ -775,30 +746,8 @@ function Index() {
 
   const finalScore = hud.gold + hud.kills * 10;
 
-  const submitScore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitError(null);
-    const username = form.username.trim();
-    const wallet = form.wallet.trim();
-    if (username.length < 1 || username.length > 32) { setSubmitError("Username must be 1–32 characters."); return; }
-    if (wallet.length < 4 || wallet.length > 128) { setSubmitError("Wallet must be 4–128 characters."); return; }
-    setSubmitting(true);
-    const nft_token_id = selectedChar.kind === "nft" ? selectedChar.tokenId : null;
-    const nft_rarity = selectedChar.kind === "nft" ? selectedChar.rarity : null;
-    const { error } = await supabase.from("leaderboard").insert({
-      username,
-      wallet: wallet.toLowerCase(),
-      score: finalScore,
-      wave: hud.wave,
-      kills: hud.kills,
-      gold: hud.gold,
-      nft_token_id,
-      nft_rarity,
-    });
-    setSubmitting(false);
-    if (error) { setSubmitError(error.message); return; }
-    setSubmitted(true);
-  };
+  // Score submission is handled on-chain by <OnChainSubmit /> on the Game Over panel.
+
 
   return (
     <main className="fixed inset-0 w-screen h-screen overflow-hidden select-none touch-none" style={{ background: "var(--gradient-sky)" }}>
@@ -968,47 +917,8 @@ function Index() {
             >
               <X className="w-4 h-4" />
             </button>
-            <div className="flex items-center gap-2 mb-4">
-              <Trophy className="w-6 h-6 text-yellow-400" />
-              <h2 className="font-game text-base sm:text-lg tracking-wider">LEADERBOARD</h2>
-              <span className="ml-auto mr-8 text-[10px] uppercase tracking-wider opacity-70 flex items-center gap-1.5 font-game-body">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> LIVE
-              </span>
-            </div>
-            {leaderboard.length === 0 ? (
-              <p className="font-game-body text-lg opacity-70 text-center py-8">No scores yet. Be the first!</p>
-            ) : (
-              <ol className="space-y-2 font-game-body">
-                {leaderboard.map((row, i) => {
-                  const r = row.nft_rarity as Rarity | null;
-                  const c = r ? RARITY_COLORS[r] : null;
-                  return (
-                    <li key={row.id} className="flex items-center gap-3 text-lg rounded-xl px-3 py-2.5 border border-white/5"
-                      style={{ background: i === 0 ? "linear-gradient(90deg, rgba(250,204,21,0.25), transparent)" : i < 3 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)" }}>
-                      <span className="font-bold w-6 text-center text-base">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="font-semibold truncate text-white">{row.username}</span>
-                          {r && c && (
-                            <span
-                              title={`Flork #${row.nft_token_id} · ${r}`}
-                              className={`shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${c.text} ${c.bg} ${c.ring.replace("ring-", "border-")}`}
-                            >
-                              {r === "Legendary" ? "★ " : ""}{r}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs opacity-60 font-mono truncate">{shortWallet(row.wallet)}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-bold text-yellow-300 text-base leading-tight">{row.score}</div>
-                        <div className="text-[10px] opacity-60 leading-tight">W{row.wave} · {row.kills}k</div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
+            <OnChainLeaderboard />
+
           </div>
         </div>
       )}
@@ -1192,48 +1102,15 @@ function Index() {
           <div className="text-white/80 mb-1 text-sm sm:text-base">Wave {hud.wave} · {hud.kills} kills · 🪙 {hud.gold}</div>
           <div className="text-white/70 mb-4 text-sm">Score: <span className="font-bold text-white text-base">{finalScore}</span> · Best: {best}</div>
 
-          {!submitted ? (
-            <form onSubmit={submitScore} className="w-full max-w-sm space-y-2 bg-white/10 rounded-2xl p-4 border border-white/20">
-              <div className="text-white/90 text-sm font-semibold text-center mb-1">Submit your score</div>
-              <input
-                type="text" placeholder="Username"
-                value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                maxLength={32}
-                className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                required
-              />
-              <input
-                type="text" placeholder="Wallet (e.g. 0x...)"
-                value={form.wallet}
-                onChange={(e) => setForm((f) => ({ ...f, wallet: e.target.value }))}
-                maxLength={128}
-                className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm placeholder:text-black/50 focus:outline-none focus:ring-2 focus:ring-pink-400"
-                required
-              />
-              {submitError && <div className="text-red-300 text-xs">{submitError}</div>}
-              <div className="flex gap-2">
-                <button type="submit" disabled={submitting}
-                  className="flex-1 py-2 rounded-full font-bold text-white text-sm disabled:opacity-60"
-                  style={{ background: "var(--gradient-flork)" }}>
-                  {submitting ? "Saving..." : "Submit"}
-                </button>
-                <button type="button" onClick={start}
-                  className="px-4 py-2 rounded-full font-bold text-white text-sm bg-white/20 border border-white/30">
-                  Skip
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <div className="text-emerald-300 text-base">✓ Submitted to leaderboard!</div>
-              <button onClick={start}
-                className="px-10 py-3 rounded-full font-bold text-white text-base"
-                style={{ background: "var(--gradient-flork)", boxShadow: "var(--shadow-glow)" }}>
-                PLAY AGAIN
-              </button>
-            </div>
-          )}
+          <OnChainSubmit
+            selected={selectedChar}
+            score={finalScore}
+            wave={hud.wave}
+            kills={hud.kills}
+            onShowLeaderboard={() => setShowLB(true)}
+            onPlayAgain={start}
+          />
+
         </div>
       )}
     </main>
