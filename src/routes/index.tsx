@@ -127,11 +127,6 @@ function Index() {
   useEffect(() => { bonusRef.current = bonus; }, [bonus]);
 
 
-    if (walletAddress) {
-      setForm((f) => (f.wallet ? f : { ...f, wallet: walletAddress }));
-    }
-  }, [walletAddress]);
-
   // Bug #2 fix: trees rendered from JSX must come from React state, not from a ref
   // (otherwise new trees from a fresh game don't repaint).
   const [trees, setTrees] = useState<Tree[]>([]);
